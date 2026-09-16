@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "art-agent"
+version = "0.1.0"
+description = "Agent IA pour enrichir des œuvres d'art avec audiodescription ou fond sonore."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "boto3>=1.34.0",
+    "pydantic>=2.7.0",
+    "typer>=0.12.0",
+    "python-dotenv>=1.0.1",
+    "Pillow>=10.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "ruff>=0.5.0",
+    "mypy>=1.10.0",
+]
+
+[project.scripts]
+art-agent = "art_agent.cli:app"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
