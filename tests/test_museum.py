@@ -1,6 +1,7 @@
 import copy
 import io
 import json
+import os
 from pathlib import Path
 import tempfile
 import unittest
@@ -8,6 +9,7 @@ from unittest.mock import Mock, patch
 
 import boto3
 from botocore.stub import Stubber
+from botocore.exceptions import ProxyConnectionError, NoCredentialsError, SSLError
 from PIL import Image
 from pypdf import PdfWriter
 
@@ -16,6 +18,7 @@ from my_art.cli import init_demo
 from my_art.config import ROOT, Settings
 from my_art.corpus import Catalog, DirectContextProvider
 from my_art.service import MuseumService
+from my_art.schemas import VISIT_SCHEMA
 
 
 class MuseumTests(unittest.TestCase):
@@ -82,6 +85,35 @@ class MuseumTests(unittest.TestCase):
         self.assertEqual(result["calls"], 1)
         self.assertEqual(result["context"]["version"], prepared.context.version)
         self.assertFalse(result["capabilities"]["image_generation"])
+
+    def test_schema_exposes_local_limits_and_keeps_title_property(self):
+        steps = VISIT_SCHEMA["properties"]["steps"]
+        self.assertEqual(steps["maxItems"], 4)
+        fields = steps["items"]["properties"]
+        self.assertEqual(fields["title"]["maxLength"], 150)
+        self.assertEqual(fields["evidence"]["items"]["properties"]["quote"]["maxLength"], 1200)
+        self.assertFalse(steps["items"]["additionalProperties"])
+        self.assertNotIn('"$ref"', json.dumps(VISIT_SCHEMA))
+
+    def test_visual_labels_are_normalized_without_relaxing_citations(self):
+        prepared = self.prepared()
+        payload = self.payload(prepared)
+        payload["steps"][0]["visual_target"] = ""
+        self.assertEqual(self.service._validate(payload, prepared).steps[0].visual_target, "Premier plan")
+        payload["steps"][0]["visual_focus"] = "none"
+        payload["steps"][0]["visual_target"] = "Aucune vue nécessaire"
+        self.assertEqual(self.service._validate(payload, prepared).steps[0].visual_target, "")
+        payload["steps"][0]["evidence"] = []
+        with self.assertRaises(ValueError):
+            self.service._validate(payload, prepared)
+
+    def test_schema_error_reports_field_without_generated_content(self):
+        prepared = self.prepared()
+        payload = self.payload(prepared)
+        payload["steps"][0]["basis"] = "PRIVATE_GENERATED_VALUE"
+        with self.assertRaisesRegex(ValueError, r"steps.0.basis: literal_error") as error:
+            self.service._validate(payload, prepared)
+        self.assertNotIn("PRIVATE_GENERATED_VALUE", str(error.exception))
 
     def test_rejects_invented_citations_and_visual_observations_without_image(self):
         prepared = self.prepared()
@@ -173,6 +205,33 @@ class MuseumTests(unittest.TestCase):
         client.converse.return_value = {"stopReason": "max_tokens", "output": {"message": {"content": []}}}
         with self.assertRaises(ModelError):
             BedrockModel(self.settings, client).complete("question", None)
+
+    def test_local_errors_are_actionable_without_exposing_raw_details(self):
+        for error in (ProxyConnectionError(proxy_url="SECRET"), NoCredentialsError(),
+                      SSLError(endpoint_url="SECRET", error="SECRET")):
+            client = Mock()
+            client.converse.side_effect = error
+            with self.subTest(error=type(error).__name__), self.assertRaises(ModelError) as caught:
+                BedrockModel(self.settings, client).complete("test", None)
+            self.assertIn(type(error).__name__, str(caught.exception))
+            self.assertNotIn("SECRET", str(caught.exception))
+
+    def test_bearer_key_skips_ec2_lookup_and_signs_without_network(self):
+        class StopBeforeSend(Exception):
+            pass
+
+        with patch.dict(os.environ, {"AWS_BEARER_TOKEN_BEDROCK": "test-local-token"}, clear=True):
+            # Une session neuve évite les caches globaux entre tests.
+            session = boto3.Session()
+            def stop(request, **kwargs):
+                self.assertIn("bedrock-runtime", request.url)
+                self.assertEqual(request.headers["Authorization"], b"Bearer test-local-token")
+                raise StopBeforeSend()
+            with patch("my_art.bedrock.boto3.client", side_effect=session.client), \
+                    patch("botocore.httpsession.URLLib3Session.send", side_effect=stop) as send:
+                with self.assertRaises(StopBeforeSend):
+                    BedrockModel(self.settings).complete("test", None)
+                send.assert_called_once()
 
 
 class AppTests(unittest.TestCase):

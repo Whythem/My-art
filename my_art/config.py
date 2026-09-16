@@ -16,7 +16,7 @@ MODELS = {
 @dataclass(frozen=True)
 class Settings:
     data_dir: Path
-    region: str = "eu-west-3"
+    region: str = "eu-west-1"
     model_id: str = "eu.amazon.nova-pro-v1:0"
     max_context_chars: int = 40_000
     max_output_tokens: int = 3_000

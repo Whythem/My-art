@@ -11,10 +11,12 @@ from .config import MODELS, Settings
 from .corpus import Catalog, Context, ContextProvider
 from .bedrock import VisitModel
 from .schemas import Artwork, Visit
+from .visuals import ImageProvider, MockImageProvider, VisualRequest
 
 CAPABILITIES = {"document_context": True, "visual_analysis": True,
                 "embeddings": False, "image_generation": False,
-                "speech_synthesis": False, "speech_transcription": False}
+                "speech_synthesis": False, "speech_transcription": False,
+                "mock_image_generation": True}
 
 
 @dataclass
@@ -35,11 +37,13 @@ class Prepared:
 
 
 class MuseumService:
-    def __init__(self, settings: Settings, context_provider: ContextProvider, model: VisitModel):
+    def __init__(self, settings: Settings, context_provider: ContextProvider, model: VisitModel,
+                 image_provider: ImageProvider | None = None):
         self.settings = settings
         self.catalog = Catalog(settings.data_dir)
         self.context_provider = context_provider
         self.model = model
+        self.image_provider = image_provider or MockImageProvider(self.catalog)
 
     def prepare(self, artwork_id: str, question: str = "", mode: Literal["ask", "visit"] = "ask",
                 level: Literal["simple", "detaille"] = "simple", include_image: bool = True) -> Prepared:
@@ -63,6 +67,8 @@ class MuseumService:
                      if level == "simple" else "Expliquer les termes et développer sans inventer.",
             "question": question.strip(), "artwork": artwork.model_dump(),
             "image_attached": image is not None,
+            "available_visuals": {focus: view.model_dump(exclude={"file"})
+                                  for focus, view in artwork.views.items()},
             "documents": context.as_dict(),
         }, ensure_ascii=False)
         return Prepared(artwork, context, prompt, image, mode, level)
@@ -72,7 +78,7 @@ class MuseumService:
         result.update(model=self.settings.model_id, region=self.settings.region,
                       capabilities={**CAPABILITIES,
                                     "visual_analysis": MODELS[self.settings.model_id]},
-                      calls=0, usage={})
+                      calls=0, usage={}, visual_calls=[])
         if not prepared.context.sources:
             result["visit"] = {"status": "insufficient_sources", "steps": []}
             result["message"] = "Aucun document exploitable pour cette œuvre. Ajoutez une notice."
@@ -83,14 +89,29 @@ class MuseumService:
                       request_id=completion.request_id,
                       message="Proposition IA : références vérifiées, contenu à relire."
                       if visit.status == "answered" else "La documentation ne permet pas de répondre.")
+        for index, step in enumerate(visit.steps):
+            if step.visual_focus not in {"none", "overview"}:
+                visual = self.image_provider.generate(VisualRequest(
+                    prepared.artwork.id, step.visual_focus, step.visual_target))
+                result["visit"]["steps"][index]["visual"] = visual
+                result["visual_calls"].append(visual)
         return result
 
     @staticmethod
     def _validate(payload: dict, prepared: Prepared) -> Visit:
         try:
             visit = Visit.model_validate(payload)
-        except ValidationError:
-            raise ValueError("Réponse au format invalide. Aucun contenu généré n'est affiché.") from None
+        except ValidationError as exc:
+            # Ne jamais inclure les valeurs du modèle dans le message de diagnostic.
+            known = {"status", "steps", "title", "text", "basis", "evidence",
+                     "source_id", "quote", "visual_focus", "visual_target"}
+            details = []
+            for error in exc.errors(include_input=False, include_url=False)[:5]:
+                location = ".".join(str(part) if isinstance(part, int) or part in known
+                                    else "champ_inconnu" for part in error["loc"])
+                details.append(f"{location}: {error['type']}")
+            raise ValueError("Réponse au format invalide : " + "; ".join(details)
+                             + ". Aucun contenu généré n'est affiché.") from None
         if visit.status == "insufficient_sources":
             if visit.steps:
                 raise ValueError("Réponse incohérente : refus documentaire accompagné d'affirmations.")
@@ -104,8 +125,15 @@ class MuseumService:
                 raise ValueError("Affirmation documentaire sans source : réponse rejetée.")
             if step.basis == "observation" and prepared.image is None:
                 raise ValueError("Observation visuelle sans image fournie : réponse rejetée.")
-            if (step.visual_focus == "none") != (step.visual_target == ""):
-                raise ValueError("Cible visuelle incohérente : réponse rejetée.")
+            # Ces libellés pilotent l'affichage, sans ajouter d'affirmation sur l'œuvre.
+            if step.visual_focus == "none":
+                step.visual_target = ""
+            elif not step.visual_target:
+                step.visual_target = {
+                    "overview": "Vue d'ensemble", "foreground": "Premier plan",
+                    "midground": "Second plan", "background": "Arrière-plan",
+                    "detail": "Détail non précisé",
+                }[step.visual_focus]
             for evidence in step.evidence:
                 source = sources.get(evidence.source_id)
                 if source is None or normalize(evidence.quote) not in normalize(source.text):

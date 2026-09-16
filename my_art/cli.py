@@ -11,6 +11,8 @@ from .bedrock import BedrockModel, ModelError
 from .config import MODELS, ROOT, Settings
 from .corpus import Catalog, DirectContextProvider
 from .service import MuseumService
+from .importer import import_artwork
+from .visuals import MockImageProvider, VisualRequest
 
 
 def make_service(settings: Settings) -> MuseumService:
@@ -40,6 +42,11 @@ def main(argv=None) -> int:
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("init-demo", help="Copier deux œuvres fictives dans un dossier vide, sans réseau.")
     sub.add_parser("list", help="Lister les œuvres locales, sans réseau.")
+    importer = sub.add_parser("import-artwork", help="Importer un dossier art_gallery, sans réseau.")
+    importer.add_argument("source", type=Path)
+    mock_image = sub.add_parser("mock-image", help="Simuler un appel de génération, sans réseau.")
+    mock_image.add_argument("artwork_id")
+    mock_image.add_argument("focus", choices=("foreground", "midground", "background", "detail"))
     for name in ("ask", "visit"):
         command = sub.add_parser(name)
         command.add_argument("artwork_id")
@@ -65,6 +72,16 @@ def main(argv=None) -> int:
             if not artworks:
                 print("Catalogue vide. Ajouter des œuvres ou lancer : python -m my_art init-demo")
             return 0
+        if args.command == "import-artwork":
+            artwork_id = import_artwork(args.source, settings.data_dir)
+            print(f"Œuvre importée : {artwork_id}. Aucun appel API.")
+            return 0
+        if args.command == "mock-image":
+            visual = MockImageProvider(Catalog(settings.data_dir)).generate(
+                VisualRequest(args.artwork_id, args.focus, "Test manuel de la vue préparée"))
+            print(visual["message"])
+            print(f"Résultat local : {save_result(visual)}")
+            return 0 if visual["status"] == "ready" else 1
         if args.model:
             settings = replace(settings, model_id=args.model)
         service = make_service(settings)
@@ -86,7 +103,9 @@ def main(argv=None) -> int:
                     source = sources[evidence["source_id"]]
                     print(f"  Source : {source.document}, {source.location}\n  « {evidence['quote']} »")
                 if step["visual_focus"] != "none":
-                    print(f"  Suggestion visuelle (non générée) : {step['visual_target']}")
+                    print(f"  Vue demandée : {step['visual_target']}")
+                    if step.get("visual"):
+                        print(f"  Simulation : {step['visual']['message']}")
         print(f"Résultat local : {save_result(result)}")
         return 0
     except (ValueError, ModelError, OSError) as exc:

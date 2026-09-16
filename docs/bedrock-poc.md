@@ -9,7 +9,7 @@ Cette version permet de tester l'explication des œuvres avec les modèles Nova 
 - Questions-réponses et visite guidée en français, niveau simple ou détaillé.
 - Analyse visuelle facultative avec Nova Pro, Lite ou Nova 2 Lite.
 - Réponse structurée avec passages cités, distinction entre documentation et observation visuelle.
-- Suggestions de zones à mettre en évidence ultérieurement, sans produire d'image.
+- Sélection de vues pédagogiques préparées via un appel de génération simulé, sans API image.
 - Interface Streamlit locale et commandes Python.
 - Aperçu sans réseau, tests simulés, traces locales et un seul appel Bedrock par demande.
 
@@ -44,7 +44,7 @@ Ouvrez l'adresse locale affichée, normalement `http://127.0.0.1:8501`. Choisiss
 Ajoutez les variables suivantes à votre `.env` local, sans écraser les éventuelles autres clés :
 
 ```dotenv
-AWS_REGION=eu-west-3
+AWS_REGION=eu-west-1
 BEDROCK_MODEL_ID=eu.amazon.nova-pro-v1:0
 MUSEUM_DATA_DIR=data
 ```
@@ -70,6 +70,8 @@ La clé Bedrock n'est ni une clé OpenAI ni un accès Amazon Polly. Les droits d
 Références AWS : [utiliser une clé Bedrock](https://docs.aws.amazon.com/bedrock/latest/userguide/api-keys-use.html), [création d'une clé](https://docs.aws.amazon.com/bedrock/latest/userguide/api-keys-generate.html), [sorties par outil Nova](https://docs.aws.amazon.com/nova/latest/userguide/tool-use-definition.html).
 
 ## Ajouter une vraie œuvre
+
+Le tableau Het Steen et ses vues préparées sont disponibles : voir le [guide du test Het Steen](het-steen-poc.md) pour l'import et la simulation sans réseau.
 
 Le dossier administrateur par défaut est `data/`, exclu de Git :
 
@@ -132,11 +134,12 @@ flowchart LR
     Image[Image facultative] --> Service
     Service --> Nova[Bedrock Converse : Nova]
     Nova --> Validation[Schéma et contrôle des citations]
-    Validation --> Result[Étapes, sources et suggestions visuelles]
+    Validation --> Mock[Fournisseur image simulé : vues préparées]
+    Mock --> Result[Étapes, sources et vues pédagogiques]
     Result --> UI
 ```
 
-L'orchestrateur réalise une séquence fixe avec un appel au modèle. Nova choisit le contenu des étapes et les zones visuelles proposées via le contrat `present_visit`. **Il ne s'agit pas encore d'une boucle d'agents autonomes** : aucun outil externe n'est exécuté à la demande du modèle.
+L'orchestrateur réalise une séquence fixe avec un appel au modèle. Nova choisit le contenu des étapes et les zones visuelles via le contrat `present_visit`. Après validation, l'orchestrateur demande chaque vue au fournisseur local simulé. **Il ne s'agit pas encore d'une boucle d'agents autonomes** : aucun service externe de génération d'image n'est appelé.
 
 Le contrôle refuse les références inconnues, les citations absentes des passages, les affirmations documentaires sans référence et les observations visuelles sans image. Il ne prouve pas qu'une citation étaye réellement toutes les affirmations de l'étape. Le modèle peut encore faire une mauvaise interprétation, ignorer une contradiction ou confondre un détail. Une relecture humaine reste nécessaire. Les instructions de séparation entre données et consignes réduisent les risques d'injection documentaire sans les éliminer.
 
@@ -148,7 +151,7 @@ L'interface est un banc de test local, sans authentification administrateur et s
 | --- | --- |
 | Recherche textuelle ou embeddings | Remplacer `DirectContextProvider` par un autre `ContextProvider` conservant les passages et leur provenance. |
 | Autre modèle d'explication | Implémenter le contrat `VisitModel.complete` qui retourne un `Completion`, puis conserver la validation de sortie. |
-| Génération d'images | Consommer les suggestions `visual_focus` / `visual_target` via un service distinct ; valider les vues avant affichage. |
+| Génération d'images | Remplacer `MockImageProvider` par une implémentation de `ImageProvider.generate` ; valider les vues avant affichage. |
 | Narration audio | Synthétiser le texte des étapes après validation, avec cache par texte et voix. |
 | Questions vocales | Transcrire l'audio, puis transmettre le texte à `prepare`, sans modifier le parcours documentaire. |
 

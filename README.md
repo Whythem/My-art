@@ -8,6 +8,12 @@ Le premier **POC (preuve de concept)** porte sur **2 à 3 œuvres**. Il associe 
 
 ## Démarrer le musée avec Bedrock
 
+**Het Steen est disponible avec ses deux textes et deux vues pédagogiques préparées.** Le [guide Het Steen](docs/het-steen-poc.md) décrit l'import et les appels de génération d'images simulés, sans service externe :
+
+```powershell
+.\.venv\Scripts\python.exe -m my_art import-artwork "art_gallery\het steen"
+```
+
 Le [guide Bedrock](docs/bedrock-poc.md) décrit la configuration AWS, le dossier administrateur et les tests. Aucune clé OpenAI n’est nécessaire pour ce parcours.
 
 ```powershell

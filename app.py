@@ -9,6 +9,20 @@ from my_art.bedrock import ModelError
 from my_art.cli import make_service, save_result
 from my_art.config import MODELS, Settings
 from my_art.corpus import Catalog
+from my_art.visuals import MockImageProvider, VisualRequest, asset_path
+
+
+def show_visual(visual, artwork_id):
+    if visual["status"] != "ready":
+        st.info(visual["message"])
+        return
+    try:
+        path = asset_path(catalog, artwork_id, visual["file"])
+        st.image(str(path), caption=f"{visual['label']} — vue pédagogique préparée")
+        st.text(visual["description"])
+        st.caption("Génération simulée : image déjà fournie, aucun appel API d'images.")
+    except (ValueError, OSError):
+        st.info("Cette vue n'est plus disponible. L'image originale reste visible en haut de page.")
 
 st.set_page_config(page_title="My-art — Parcours documentaire", page_icon="🎨", layout="centered")
 st.title("My-art")
@@ -18,7 +32,7 @@ st.caption("Prototype local : les réponses reposent sur la documentation de l'�
 try:
     settings = Settings.from_env()
     catalog = Catalog(settings.data_dir)
-    artworks = catalog.list()
+    artworks = sorted(catalog.list(), key=lambda art: (art.demo, art.title))
 except (ValueError, OSError) as exc:
     st.error(str(exc) if isinstance(exc, ValueError) else "Impossible de lire le catalogue local.")
     st.stop()
@@ -32,7 +46,7 @@ with st.sidebar:
     st.header("Configuration du test")
     model_id = st.selectbox("Modèle Bedrock", list(MODELS), index=list(MODELS).index(settings.model_id))
     st.caption(f"Région : {settings.region}")
-    st.caption("Un appel maximum par demande. Aucun appel OpenAI, aucune génération d'image ou d'audio.")
+    st.caption("Un appel Bedrock maximum par demande. Les appels d'images sont simulés avec les vues fournies. Aucun appel OpenAI ou audio.")
     st.caption("L'aperçu du contexte fonctionne sans identifiants AWS.")
 
 settings = replace(settings, model_id=model_id)
@@ -55,13 +69,29 @@ except (ValueError, OSError) as exc:
     st.error(str(exc) if isinstance(exc, ValueError) else "Impossible de lire l'image locale.")
     st.stop()
 
+if artwork.views:
+    with st.expander("Tester les vues pédagogiques — sans appel API"):
+        focus = st.selectbox("Vue à demander", list(artwork.views),
+                             format_func=lambda value: artwork.views[value].label,
+                             key=f"visual_choice_{artwork_id}")
+        if st.button("Simuler la génération de cette vue"):
+            visual = MockImageProvider(catalog).generate(VisualRequest(
+                artwork_id, focus, artwork.views[focus].description))
+            path = save_result(visual)
+            st.session_state["mock_visual"] = {"artwork_id": artwork_id, "result": visual}
+        stored_visual = st.session_state.get("mock_visual")
+        if stored_visual and stored_visual["artwork_id"] == artwork_id:
+            show_visual(stored_visual["result"], artwork_id)
+            st.caption(f"Identifiant de l'appel simulé : {stored_visual['result']['request_id']}")
+
 with st.form("visit_request"):
     mode_label = st.radio("Que souhaitez-vous faire ?", ["Poser une question", "Suivre une visite guidée"])
     question = st.text_area("Votre question (facultative pour la visite guidée)", max_chars=2000,
                             placeholder="Que représente le premier plan ?")
     level_label = st.radio("Niveau d'explication", ["Simple", "Détaillé"], horizontal=True)
     include_image = st.checkbox("Joindre le tableau à l'analyse", value=bool(image) and MODELS[model_id],
-                                disabled=not image or not MODELS[model_id])
+                                disabled=not image or not MODELS[model_id],
+                                key=f"attach_{artwork_id}_{model_id}")
     preview = st.form_submit_button("Vérifier le contexte — sans appel API")
     submit = st.form_submit_button("Demander l'explication — appel Bedrock")
 
@@ -103,7 +133,11 @@ if saved and saved["result"]["artwork"]["id"] == artwork_id:
                 source = source_map[evidence["source_id"]]
                 with st.expander(f"Source : {source['document']} — {source['location']}"):
                     st.text(evidence["quote"])
-            if step["visual_focus"] != "none":
+            if step.get("visual"):
+                show_visual(step["visual"], artwork_id)
+            elif step["visual_focus"] == "overview":
+                st.caption("Vue d'ensemble : consulter l'image originale en haut de page.")
+            elif step["visual_focus"] != "none":
                 st.caption("Zone suggérée pour une future vue pédagogique (image non générée)")
                 st.text(step["visual_target"])
         st.caption("Les références sont contrôlées automatiquement ; leur pertinence et les explications restent à relire.")
@@ -112,6 +146,7 @@ if saved and saved["result"]["artwork"]["id"] == artwork_id:
             st.write(f"{source['document']} — {source['location']}")
             st.text(source["text"])
         st.write(f"Appels : {result['calls']}")
+        st.write(f"Appels d'images simulés : {len(result.get('visual_calls', []))}")
         st.json(result.get("usage", {}))
         st.caption(f"Version du corpus : {result['context']['version']}")
         st.download_button("Télécharger le résultat JSON", json.dumps(result, ensure_ascii=False, indent=2),

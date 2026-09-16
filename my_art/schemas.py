@@ -7,6 +7,12 @@ class StrictModel(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
 
 
+class PreparedView(StrictModel):
+    file: str = Field(min_length=1, max_length=250)
+    label: str = Field(min_length=1, max_length=150)
+    description: str = Field(min_length=1, max_length=1000)
+
+
 class Artwork(StrictModel):
     id: str = Field(pattern=r"^[a-z0-9][a-z0-9_-]{0,63}$")
     title: str = Field(min_length=1, max_length=200)
@@ -14,6 +20,7 @@ class Artwork(StrictModel):
     image: str | None = None
     image_alt: str = Field(default="", max_length=1000)
     demo: bool = False
+    views: dict[Literal["foreground", "midground", "background", "detail"], PreparedView] = Field(default_factory=dict)
 
 
 class Evidence(StrictModel):
@@ -26,7 +33,7 @@ class Step(StrictModel):
     text: str = Field(min_length=1, max_length=2000)
     basis: Literal["document", "observation"]
     evidence: list[Evidence] = Field(max_length=6)
-    visual_focus: Literal["none", "overview", "foreground", "background", "detail"]
+    visual_focus: Literal["none", "overview", "foreground", "midground", "background", "detail"]
     visual_target: str = Field(max_length=500)
 
 
@@ -35,27 +42,23 @@ class Visit(StrictModel):
     steps: list[Step] = Field(max_length=4)
 
 
-# Schéma volontairement simple pour le sous-ensemble JSON Schema de Nova.
-VISIT_SCHEMA = {
-    "type": "object",
-    "properties": {
-        "status": {"type": "string", "enum": ["answered", "insufficient_sources"]},
-        "steps": {"type": "array", "items": {
-            "type": "object",
-            "properties": {
-                "title": {"type": "string"},
-                "text": {"type": "string"},
-                "basis": {"type": "string", "enum": ["document", "observation"]},
-                "evidence": {"type": "array", "items": {
-                    "type": "object", "properties": {
-                        "source_id": {"type": "string"}, "quote": {"type": "string"}},
-                    "required": ["source_id", "quote"]}},
-                "visual_focus": {"type": "string", "enum": [
-                    "none", "overview", "foreground", "background", "detail"]},
-                "visual_target": {"type": "string"},
-            },
-            "required": ["title", "text", "basis", "evidence", "visual_focus", "visual_target"],
-        }},
-    },
-    "required": ["status", "steps"],
-}
+# Même contrat côté modèle et validation locale, sans références JSON imbriquées.
+def _visit_schema() -> dict:
+    schema = Visit.model_json_schema()
+    definitions = schema.pop("$defs", {})
+
+    def inline(value):
+        if isinstance(value, list):
+            return [inline(item) for item in value]
+        if not isinstance(value, dict):
+            return value
+        if "$ref" in value:
+            return inline(definitions[value["$ref"].rsplit("/", 1)[-1]])
+        return {key: ({name: inline(prop) for name, prop in item.items()}
+                     if key == "properties" else inline(item))
+                for key, item in value.items() if key != "title"}
+
+    return inline(schema)
+
+
+VISIT_SCHEMA = _visit_schema()
