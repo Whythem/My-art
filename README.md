@@ -4,7 +4,26 @@ My-art est un projet de musée interactif qui utilise l’intelligence artificie
 
 Le premier **POC (preuve de concept)** porte sur **2 à 3 œuvres**. Il associe une base documentaire fournie par un administrateur, un système de recherche documentaire RAG et un orchestrateur capable de demander les images utiles au fil de l’explication.
 
-> **État du projet : cadrage.** Ce dépôt contient actuellement la documentation du projet. L’architecture, les dossiers, les contrats et les étapes décrits ci-dessous sont des propositions à implémenter, pas des fonctionnalités déjà disponibles. Aucune procédure de lancement n’est encore applicable.
+> **État du projet : premier POC documentaire Bedrock.** Une interface locale et une CLI permettent de préparer des visites et de poser des questions à Nova à partir des documents d’une œuvre, avec image facultative et contrôle des citations. Le contexte est fourni directement, sans embeddings. La génération d’images OpenAI reste un test indépendant. L’architecture complète décrite plus bas est la cible à terme.
+
+## Démarrer le musée avec Bedrock
+
+Le [guide Bedrock](docs/bedrock-poc.md) décrit la configuration AWS, le dossier administrateur et les tests. Aucune clé OpenAI n’est nécessaire pour ce parcours.
+
+```powershell
+py -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements-bedrock.txt
+.\.venv\Scripts\python.exe -m my_art init-demo
+.\.venv\Scripts\python.exe -m streamlit run app.py --server.address 127.0.0.1 --browser.gatherUsageStats false
+```
+
+Si `.venv` existe déjà, sautez la première commande. `init-demo` ajoute deux œuvres **fictives** dans un dossier de données vide et refuse d’écraser un catalogue existant. L’aperçu du contexte est gratuit et fonctionne sans identifiants ; demander une explication déclenche au maximum un appel Bedrock facturable. Les références et citations sont contrôlées, mais la justesse des explications reste à vérifier humainement.
+
+## Tester la génération d’images
+
+Le script [generate_views.py](generate_views.py) prend une image du tableau et demande des vues du premier plan, de l’arrière-plan visible et d’un détail. Chaque vue repart de l’original. Un mode `--dry-run` prépare les consignes sans appel API.
+
+Consultez le [guide de démarrage Python](docs/image-generation-test.md) pour installer les dépendances, créer votre clé API, configurer `.env` et lancer le test. **L’API est facturée séparément de ChatGPT Plus.** Les résultats nécessitent une vérification visuelle avant utilisation dans le musée.
 
 ## 1. Vision et objectifs
 
@@ -286,7 +305,7 @@ My-art/
 └── tests/                      # Tests techniques à définir avec l’implémentation
 ```
 
-Cette arborescence est indicative et n’est pas encore créée. Les originaux volumineux, les documents à diffusion restreinte, les index et les fichiers générés devront suivre une politique de stockage dédiée plutôt qu’être ajoutés systématiquement à Git.
+Cette arborescence décrit la cible du musée. Le POC actuel est organisé dans `my_art/` (corpus, adaptateur Bedrock, orchestration, CLI), `app.py` (interface Streamlit), `examples/` (corpus fictifs), `evaluation/` et `tests/`. Le script autonome `generate_views.py` reste séparé. Les données administrateur dans `data/` et les résultats dans `output/` sont exclus de Git ; seuls les exemples fictifs sont versionnés.
 
 ## 11. Feuille de route
 
