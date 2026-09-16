@@ -60,7 +60,7 @@ class EntrypointTests(unittest.TestCase):
             Image.new("RGB", (32, 24), "blue").save(original)
 
             self.run_module("my_art.generate_views", [str(original), "--dry-run"],
-                            working, repository, ["boto3", "streamlit", "pydantic", "pypdf"])
+                            working, repository, ["boto3", "streamlit", "pypdf"])
 
             manifests = list((repository / "output/imagegen").glob("*/manifest.json"))
             self.assertEqual(len(manifests), 1)

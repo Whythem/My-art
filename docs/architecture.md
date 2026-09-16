@@ -81,7 +81,7 @@ flowchart LR
     API --> Files[PNG non validés et manifest dans output/imagegen]
 ```
 
-Ce module n’implémente pas `ImageProvider` et le musée ne l’importe pas. Le déplacer dans `my_art` ne l’intègre donc pas à la visite. L’installation image seule n’exige pas Boto3, Streamlit ou Pydantic ; celle du musée n’exige pas OpenAI.
+Ce module n’implémente pas `ImageProvider` et le musée ne l’importe pas. Le déplacer dans `my_art` ne l’intègre donc pas à la visite. L’installation image seule n’exige pas Boto3, Streamlit ou pypdf ; celle du musée n’exige pas OpenAI. Pydantic reste une dépendance transitive du SDK OpenAI.
 
 ## Limites et extensions
 
