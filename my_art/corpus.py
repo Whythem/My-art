@@ -12,6 +12,7 @@ from PIL import Image, ImageOps, UnidentifiedImageError
 from pypdf import PdfReader
 
 from .schemas import Artwork
+from .discovery import discover_images
 
 
 def within(root: Path, path: Path) -> Path:
@@ -56,7 +57,11 @@ class Catalog:
         folder = self.artwork_dir(artwork_id)
         path = within(folder, folder / "metadata.json")
         if not path.is_file():
-            raise ValueError(f"Notice absente pour l'œuvre {artwork_id}.")
+            if not folder.is_dir():
+                raise ValueError(f"Dossier absent pour l'œuvre {artwork_id}.")
+            artwork = Artwork(id=artwork_id, title=artwork_id.replace("-", " ").replace("_", " ").title(),
+                              artist="Artiste non renseigné")
+            return discover_images(artwork, folder)
         if path.stat().st_size > 64_000:
             raise ValueError("Notice trop volumineuse.")
         try:
@@ -65,7 +70,7 @@ class Catalog:
             raise ValueError(f"Notice metadata.json invalide pour {artwork_id}.") from exc
         if artwork.id != artwork_id:
             raise ValueError("L'identifiant de la notice ne correspond pas au dossier.")
-        return artwork
+        return discover_images(artwork, folder)
 
     def list(self) -> list[Artwork]:
         directory = within(self.root, self.root / "artworks")

@@ -75,7 +75,7 @@ Références AWS : [utiliser une clé Bedrock](https://docs.aws.amazon.com/bedro
 
 Le tableau Het Steen et ses vues préparées sont disponibles : voir le [guide du test Het Steen](het-steen.md) pour l'import et la simulation sans réseau.
 
-Le dossier administrateur par défaut est `data/`, exclu de Git :
+Le dossier administrateur par défaut est `data/` ; les ressources livrées y sont versionnées :
 
 ```text
 data/
@@ -102,7 +102,7 @@ Exemple de `metadata.json` à adapter :
 }
 ```
 
-L'identifiant du dossier et celui de la notice doivent correspondre. `image` peut être `null` pour commencer par le texte. Renseignez dans les documents l'auteur ou l'institution source, les références d'origine, les droits et les informations historiques que le modèle sera autorisé à expliquer. Les métadonnées du catalogue ne remplacent pas les sources documentaires.
+Les ajouts sont détectés automatiquement selon les [conventions de nommage](../../README.md#ajout-automatique-dœuvres-et-dimages). Lorsqu’une notice est fournie, l’identifiant du dossier et celui de la notice doivent correspondre. `image` peut être `null` pour commencer par le texte. Renseignez dans les documents l'auteur ou l'institution source, les références d'origine, les droits et les informations historiques que le modèle sera autorisé à expliquer. Les métadonnées du catalogue ne remplacent pas les sources documentaires.
 
 Les fichiers sont relus à chaque demande. Les passages ont des identifiants dérivés de leur œuvre, document, emplacement et contenu. Une empreinte identifie la version du corpus utilisée ; aucune réindexation manuelle n'est nécessaire.
 

@@ -29,14 +29,13 @@ Python **3.10 ou ultérieur**, depuis la racine du dépôt. Commandes PowerShell
 ```powershell
 py -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
-.\.venv\Scripts\python.exe -m my_art import-artwork "art_gallery\het-steen"
 .\.venv\Scripts\python.exe -m my_art visit het-steen --dry-run
 .\.venv\Scripts\python.exe -m streamlit run app.py --server.address 127.0.0.1 --browser.gatherUsageStats false
 ```
 
 Si `.venv` existe déjà, sautez sa création. Sous Linux/macOS, utilisez `python3 -m venv .venv`, `.venv/bin/python` et des chemins avec `/`.
 
-Le dépôt fournit **Het Steen**, ses deux textes et deux vues préparées. L’import les copie dans `data/` et refuse d’écraser des fichiers différents. L’aperçu `--dry-run` et le bouton **Vérifier le contexte — sans appel API** fonctionnent sans identifiants. Ils préparent les sources sans produire d’explication IA.
+Le dépôt fournit les ressources de **Het Steen** dans `data/artworks/het-steen/` et `data/documents/het-steen/`. L’aperçu `--dry-run` et le bouton **Vérifier le contexte — sans appel API** fonctionnent sans identifiants. Ils préparent les sources sans produire d’explication IA.
 
 Pour demander une explication, créez votre `.env` à partir de [.env.example](.env.example), uniquement s’il n’existe pas, puis configurez Bedrock selon le [guide dédié](docs/guides/bedrock.md). Une demande déclenche au maximum un appel Bedrock facturable.
 
@@ -54,13 +53,25 @@ Pour essayer les deux corpus **fictifs**, utilisez un catalogue distinct :
 
 `init-demo` nécessite un dossier vide. L’option globale `--data-dir` se place avant la commande ; l’interface utilise `MUSEUM_DATA_DIR` dans `.env`.
 
+## Ajout automatique d’œuvres et d’images
+
+Déposez les images dans `data/artworks/<identifiant>/` et les documents TXT, Markdown ou PDF textuels dans `data/documents/<identifiant>/`. Les dossiers sont également relatifs à `MUSEUM_DATA_DIR` si vous avez configuré un autre catalogue.
+
+- **Original** : une image portant l’identifiant du dossier (tirets ou underscores), puis `original`, puis l’unique autre image disponible. Extensions reconnues : JPG, JPEG, PNG et WEBP, sans distinction de casse.
+- **Vues** : `firstplan` / `premier_plan` / `foreground`, `secondplan` / `second_plan` / `midground`, `arriere_plan` / `background` et `detail`.
+- **Notice** : `metadata.json` permet de préciser le titre, l’artiste, les descriptions et les fichiers à utiliser. Ses choix explicites restent prioritaires. Sans notice, le titre vient du dossier et l’artiste reste « Artiste non renseigné ».
+
+L’interface surveille les ajouts, modifications et suppressions toutes les **3 secondes** tant que la session est active. Le catalogue est également relu à chaque commande CLI. Aucun appel IA n’est déclenché par cette détection et aucune notice n’est réécrite.
+
+En cas de plusieurs fichiers candidats au même rang, précisez le champ `image` ou `views` dans la notice. Les fichiers reconnus comme vues ne sont pas choisis comme original. Une association par nom de fichier ne valide pas le contenu artistique de l’image.
+
 ## Générer plusieurs vues d’un tableau
 
 Installation facultative et simulation locale :
 
 ```powershell
 .\.venv\Scripts\python.exe -m pip install -r requirements/imagegen.txt
-.\.venv\Scripts\python.exe -m my_art.generate_views "art_gallery\het-steen\het_steen.jpg" --dry-run
+.\.venv\Scripts\python.exe -m my_art.generate_views "data\artworks\het-steen\het_steen.jpg" --dry-run
 ```
 
 Sans `--dry-run`, le module nécessite `OPENAI_API_KEY` et effectue un appel d’édition par vue demandée. Chaque édition repart de l’original. Les sorties sont enregistrées dans `output/imagegen/` et restent à relire visuellement. Le [guide de génération](docs/guides/image-generation.md) décrit les options, la configuration et les résultats.
@@ -72,7 +83,7 @@ My-art/
 ├── app.py                 # Lanceur Streamlit
 ├── my_art/                # Code Python : interface, CLI, métier et fournisseurs
 │   └── generate_views.py  # Expérimentation image autonome
-├── art_gallery/het-steen/ # Ressources réelles fournies, à importer
+├── data/                  # Catalogue actif : images, notices et documents
 ├── examples/museum/       # Deux corpus fictifs pour les tests et init-demo
 ├── evaluation/            # Questions de référence pour la relecture des modèles
 ├── tests/                 # Tests automatisés sans appels API réels
@@ -82,7 +93,7 @@ My-art/
 └── .env.example           # Modèle de configuration locale
 ```
 
-Les dossiers locaux `data/` (catalogue actif), `output/` (résultats), `input/` (images personnelles), `.venv/` et le fichier `.env` sont exclus de Git. `art_gallery/` et `examples/` sont les ressources versionnées ; les imports ne les modifient pas.
+Le dossier `data/` contient le catalogue actif et ses ressources versionnées. `examples/` contient les corpus fictifs. Les dossiers `output/` (résultats), `input/` (images personnelles), `.venv/` et le fichier `.env` sont exclus de Git.
 
 ## Développer et vérifier
 

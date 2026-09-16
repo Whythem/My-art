@@ -6,7 +6,7 @@ My-art est une application Python locale. Le code se trouve dans `my_art/`, avec
 
 ```mermaid
 flowchart TD
-    Gallery[art_gallery : ressources fournies] --> Import[importer.py]
+    Gallery[Dossier source externe facultatif] --> Import[importer.py]
     Examples[examples/museum : corpus fictifs] --> Demo[demo.py]
     Import --> Data[data : catalogue actif]
     Demo --> Data
@@ -45,6 +45,7 @@ Le modèle retourne une proposition structurée via `present_visit`. La validati
 | `my_art/config.py` | Configuration du musée et modèles autorisés dans ce POC. |
 | `my_art/demo.py` | Installation des exemples fictifs dans un dossier vide. |
 | `my_art/importer.py` | Import d’une œuvre et refus des conflits de fichiers. |
+| `my_art/discovery.py` | Détection des originaux et vues par nom, et empreinte des fichiers pour l’actualisation. |
 | `my_art/corpus.py` | Catalogue, préparation des images, extraction documentaire et provenance. |
 | `my_art/schemas.py` | Contrats Pydantic pour notices, vues et réponses du modèle. |
 | `my_art/service.py` | Préparation, appel borné, validation et sélection des vues. |
@@ -58,11 +59,10 @@ Le package reste volontairement peu profond : les modules correspondent à des r
 
 | Dossier | Usage | Versionné |
 | --- | --- | --- |
-| `art_gallery/` | Images, textes et notices réels à importer ; Het Steen actuellement. | Oui |
 | `examples/museum/` | Catalogue fictif complet servant à `init-demo` et aux tests. | Oui |
 | `evaluation/` | Questions et attentes pour la relecture des réponses. | Oui |
-| `data/artworks/<id>/` | Notice, original et vues du catalogue actif. | Non |
-| `data/documents/<id>/` | Corpus actif TXT, Markdown ou PDF textuel. | Non |
+| `data/artworks/<id>/` | Notice, original et vues du catalogue actif. | Oui |
+| `data/documents/<id>/` | Corpus actif TXT, Markdown ou PDF textuel. | Oui |
 | `output/museum/<exécution>/` | Contexte, réponse et traces de la demande. | Non |
 | `output/imagegen/<exécution>/` | Copie de l’original, images et manifest du générateur. | Non |
 
@@ -90,3 +90,11 @@ Les limites documentaires sont actuellement : 30 fichiers, 10 Mio par document, 
 Les appels aux fournisseurs n’ont pas de relance automatique. Les contrôles de citations vérifient leur présence, pas la pertinence de toutes les affirmations. Chaque question est indépendante et il n’existe ni mémoire conversationnelle ni boucle d’agents.
 
 Les contrats `ContextProvider.retrieve`, `VisitModel.complete` et `ImageProvider.generate` sont conservés : ils sont utilisés par le service et permettent respectivement de remplacer le contexte direct, le modèle et les vues simulées. Une future intégration du générateur devra adapter son résultat au contrat visuel et définir la validation, le cache et les limites d’appels. Voir la [feuille de route](roadmap.md).
+
+## Détection des ajouts
+
+`Catalog.get` complète en mémoire les champs image et vues non renseignés à partir des noms de fichiers. Les choix explicites de `metadata.json` restent prioritaires, même si un fichier déclaré manque : la validation signale alors le problème. Une notice absente dans un dossier existant donne un titre dérivé du dossier et un artiste non renseigné ; une notice présente mais invalide reste rejetée.
+
+`discover_images` exclut les vues des candidats à l’original et refuse de départager des candidats de même priorité. Les images retenues passent ensuite par les contrôles habituels de chemin, taille et format avant utilisation. La détection n’écrit aucun fichier et ne certifie pas le contenu d’une vue.
+
+Un fragment Streamlit compare toutes les trois secondes les chemins, tailles et dates de modification de `artworks/` et `documents/`. Il relance l’affichage uniquement si cette empreinte change. Les boutons de génération restent soumis à une action explicite ; la surveillance n’appelle aucun modèle. Les conventions de nommage figurent dans le [README](../README.md#ajout-automatique-dœuvres-et-dimages).

@@ -2,7 +2,7 @@
 
 [Accueil](../../README.md) · [Architecture](../architecture.md)
 
-Le dossier `art_gallery/het-steen/` contient l'œuvre de Peter Paul Rubens et les ressources fournies pour ce POC :
+Les dossiers `data/artworks/het-steen/` (notice et images) et `data/documents/het-steen/` (textes) contiennent l'œuvre de Peter Paul Rubens et les ressources fournies pour ce POC :
 
 | Fichier | Utilisation |
 | --- | --- |
@@ -15,13 +15,11 @@ Le dossier `art_gallery/het-steen/` contient l'œuvre de Peter Paul Rubens et le
 
 Les deux TXT sont déjà compatibles avec le lecteur documentaire. Ils sont conservés en UTF-8, sans réécriture ni traduction, pour préserver les citations. Nova reçoit la consigne d'expliquer en français en conservant les citations dans leur langue d'origine. Les documents fournis ne comportent pas de référence bibliographique complète : elle n'a pas été inventée pendant l'import.
 
-## Importer les ressources
+## Chargement des ressources
 
-```powershell
-.\.venv\Scripts\python.exe -m my_art import-artwork "art_gallery\het-steen"
-```
+Les ressources fournies sont directement disponibles dans le catalogue `data/`. Les ajouts d’images et de textes sont détectés automatiquement ; voir les [conventions de nommage](../../README.md#ajout-automatique-dœuvres-et-dimages).
 
-La commande copie la notice et les trois images dans `data/artworks/het-steen/`, et les deux TXT dans `data/documents/het-steen/` (ou le dossier configuré par `MUSEUM_DATA_DIR`). Les fichiers sources restent inchangés. L'import est répétable si les fichiers sont identiques ; il refuse d'écraser une version différente déjà dans le catalogue.
+Pour importer un autre dossier source réunissant une notice `metadata.json`, des images et des documents, utilisez `python -m my_art import-artwork "chemin/vers/le-dossier"`. L’import refuse d’écraser un fichier différent et conserve les sources.
 
 ## Tester sans AWS
 

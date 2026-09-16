@@ -1,6 +1,7 @@
 import copy
 from hashlib import sha256
 from pathlib import Path
+import shutil
 import tempfile
 import unittest
 from unittest.mock import Mock, patch
@@ -19,7 +20,11 @@ class PreparedViewTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name) / "data"
-        self.source = ROOT / "art_gallery" / "het-steen"
+        # Reconstituer le dossier d'import à partir des ressources livrées dans data/.
+        self.source = Path(self.temp.name) / "source"
+        shutil.copytree(ROOT / "data/artworks/het-steen", self.source)
+        for document in (ROOT / "data/documents/het-steen").iterdir():
+            shutil.copyfile(document, self.source / document.name)
         import_artwork(self.source, self.root)
         self.catalog = Catalog(self.root)
         self.provider = MockImageProvider(self.catalog)

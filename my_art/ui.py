@@ -11,6 +11,13 @@ from my_art.config import MODELS, Settings
 from my_art.corpus import Catalog
 from my_art.visuals import MockImageProvider, VisualRequest, asset_path
 from my_art.paths import ROOT
+from my_art.discovery import catalog_snapshot
+
+
+@st.fragment(run_every=3)
+def watch_catalog(data_dir, snapshot):
+    if catalog_snapshot(data_dir) != snapshot:
+        st.rerun()
 
 
 def show_visual(catalog, visual, artwork_id):
@@ -44,6 +51,8 @@ def main():
 
     try:
         settings = Settings.from_env()
+        snapshot = catalog_snapshot(settings.data_dir)
+        watch_catalog(settings.data_dir, snapshot)
         catalog = Catalog(settings.data_dir)
         artworks = sorted(catalog.list(), key=lambda art: (art.demo, art.title))
     except (ValueError, OSError) as exc:
@@ -77,7 +86,9 @@ def main():
             if artwork.image_alt:
                 st.write(f"Description de l'image : {artwork.image_alt}")
         else:
-            st.info("Aucune image de référence ajoutée. Le parcours documentaire reste disponible.")
+            st.info("Aucune image de référence identifiée. Ajoutez une image nommée original.jpg "
+                    "ou portant l'identifiant de l'œuvre dans son dossier. S'il y a plusieurs "
+                    "originaux possibles, précisez le champ image dans metadata.json.")
     except (ValueError, OSError) as exc:
         st.error(str(exc) if isinstance(exc, ValueError) else "Impossible de lire l'image locale.")
         st.stop()
@@ -104,7 +115,7 @@ def main():
         level_label = st.radio("Niveau d'explication", ["Simple", "Détaillé"], horizontal=True)
         include_image = st.checkbox("Joindre le tableau à l'analyse", value=bool(image) and MODELS[model_id],
                                     disabled=not image or not MODELS[model_id],
-                                    key=f"attach_{artwork_id}_{model_id}")
+                                    key=f"attach_{artwork_id}_{model_id}_{bool(image)}")
         preview = st.form_submit_button("Vérifier le contexte — sans appel API")
         submit = st.form_submit_button("Demander l'explication — appel Bedrock")
 
