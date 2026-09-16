@@ -10,6 +10,7 @@ from my_art.runtime import make_service, save_result
 from my_art.config import MODELS, Settings
 from my_art.corpus import Catalog
 from my_art.visuals import MockImageProvider, VisualRequest, asset_path
+from my_art.paths import ROOT
 
 
 def show_visual(catalog, visual, artwork_id):
@@ -26,8 +27,18 @@ def show_visual(catalog, visual, artwork_id):
 
 
 def main():
-    st.set_page_config(page_title="My-art — Parcours documentaire", page_icon="🎨", layout="centered")
-    st.title("My-art")
+    logo_path = ROOT / "data" / "logo" / "logo.png"
+    st.set_page_config(
+        page_title="Augmented Art for Accessibility",
+        page_icon=str(logo_path),
+        layout="centered",
+    )
+
+    col_logo, col_title = st.columns([1, 5])
+    with col_logo:
+        st.image(str(logo_path), width=90)
+    with col_title:
+        st.title("Augmented Art for Accessibility")
     st.write("Explorer une œuvre, une explication à la fois.")
     st.caption("Prototype local : les réponses reposent sur la documentation de l'œuvre sélectionnée.")
 
