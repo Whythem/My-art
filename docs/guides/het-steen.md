@@ -1,6 +1,8 @@
 # Het Steen : œuvre réelle et génération d'images simulée
 
-Le dossier `art_gallery/het steen/` contient l'œuvre de Peter Paul Rubens et les ressources fournies pour ce POC :
+[Accueil](../../README.md) · [Architecture](../architecture.md)
+
+Le dossier `art_gallery/het-steen/` contient l'œuvre de Peter Paul Rubens et les ressources fournies pour ce POC :
 
 | Fichier | Utilisation |
 | --- | --- |
@@ -16,7 +18,7 @@ Les deux TXT sont déjà compatibles avec le lecteur documentaire. Ils sont cons
 ## Importer les ressources
 
 ```powershell
-.\.venv\Scripts\python.exe -m my_art import-artwork "art_gallery\het steen"
+.\.venv\Scripts\python.exe -m my_art import-artwork "art_gallery\het-steen"
 ```
 
 La commande copie la notice et les trois images dans `data/artworks/het-steen/`, et les deux TXT dans `data/documents/het-steen/` (ou le dossier configuré par `MUSEUM_DATA_DIR`). Les fichiers sources restent inchangés. L'import est répétable si les fichiers sont identiques ; il refuse d'écraser une version différente déjà dans le catalogue.

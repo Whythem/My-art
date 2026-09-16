@@ -6,7 +6,8 @@ import unittest
 from unittest.mock import Mock, patch
 
 from my_art.bedrock import Completion
-from my_art.config import ROOT, Settings
+from my_art.config import Settings
+from my_art.paths import ROOT
 from my_art.corpus import Catalog, DirectContextProvider
 from my_art.importer import import_artwork
 from my_art.service import MuseumService
@@ -18,7 +19,7 @@ class PreparedViewTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name) / "data"
-        self.source = ROOT / "art_gallery" / "het steen"
+        self.source = ROOT / "art_gallery" / "het-steen"
         import_artwork(self.source, self.root)
         self.catalog = Catalog(self.root)
         self.provider = MockImageProvider(self.catalog)
@@ -73,7 +74,7 @@ class PreparedViewTests(unittest.TestCase):
 
         with patch("my_art.config.Settings.from_env", return_value=Settings(self.root)), \
                 patch("my_art.bedrock.BedrockModel.complete") as bedrock, \
-                patch("my_art.cli.save_result", return_value=Path("test-result.json")):
+                patch("my_art.ui.save_result", return_value=Path("test-result.json")):
             app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
             for focus in ("foreground", "midground"):
                 app.selectbox(key="visual_choice_het-steen").set_value(focus)

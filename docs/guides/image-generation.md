@@ -1,5 +1,7 @@
 # Tester les vues pédagogiques en Python
 
+[Accueil](../../README.md) · [Architecture](../architecture.md)
+
 Ce test envoie une image à l'API OpenAI Images et demande trois éditions distinctes : premier plan, arrière-plan visible et détail. Il n'implémente pas encore le RAG, la génération d'explications historiques ou l'orchestration agentique du musée.
 
 ## 1. Créer la clé API
@@ -19,7 +21,7 @@ Python **3.10 ou ultérieur**. Dans PowerShell, depuis la racine du dépôt :
 
 ```powershell
 py -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+.\.venv\Scripts\python.exe -m pip install -r requirements/imagegen.txt
 Copy-Item .env.example .env
 ```
 
@@ -32,14 +34,14 @@ OPENAI_API_KEY=votre_cle_api_openai
 OPENAI_IMAGE_MODEL=gpt-image-2
 ```
 
-Le script charge le `.env` situé à côté de `generate_views.py`, même si vous le lancez depuis un autre dossier. Une variable d'environnement existante est prioritaire. `.env`, `.venv`, `input` et `output` sont ignorés par Git.
+Le script charge le `.env` situé à la racine du dépôt, même si vous le lancez depuis un autre dossier. Une variable d'environnement existante est prioritaire. `.env`, `.venv`, `input` et `output` sont ignorés par Git.
 
 ## 3. Fournir un tableau et simuler
 
 Placez votre tableau, par exemple, dans `input/tableau.jpg` (créez le dossier `input`). Formats acceptés : PNG, JPEG, WEBP fixes, jusqu'à 20 Mio pour ce test.
 
 ```powershell
-.\.venv\Scripts\python.exe generate_views.py "input\tableau.jpg" --dry-run
+.\.venv\Scripts\python.exe -m my_art.generate_views "input\tableau.jpg" --dry-run
 ```
 
 Ce mode vérifie le fichier et crée une copie de l'original et un `manifest.json` avec les consignes. Il ne nécessite pas de clé, n'envoie rien et ne génère aucune image. Vous pouvez l'exécuter avant de créer votre clé.
@@ -49,13 +51,13 @@ Ce mode vérifie le fichier et crée une copie de l'original et un `manifest.jso
 Pour évaluer la qualité sur un seul appel :
 
 ```powershell
-.\.venv\Scripts\python.exe generate_views.py "input\tableau.jpg" --views premier_plan --quality low
+.\.venv\Scripts\python.exe -m my_art.generate_views "input\tableau.jpg" --views premier_plan --quality low
 ```
 
 Puis demander les trois vues, en précisant l'élément à isoler :
 
 ```powershell
-.\.venv\Scripts\python.exe generate_views.py "input\tableau.jpg" --detail "le personnage assis à gauche" --quality medium
+.\.venv\Scripts\python.exe -m my_art.generate_views "input\tableau.jpg" --detail "le personnage assis à gauche" --quality medium
 ```
 
 Sans `--detail`, la troisième vue cible « le sujet principal du tableau ». Choisissez un élément effectivement visible. Les trois éditions partent chacune de l'original pour éviter d'accumuler les modifications.
@@ -100,7 +102,7 @@ Le script s'arrête au premier échec et conserve les vues déjà reçues. Il ne
 ## 7. Vérification locale sans facturation
 
 ```powershell
-.\.venv\Scripts\python.exe -m unittest discover -s tests -v
+.\.venv\Scripts\python.exe -m unittest discover -s tests -p "test_generate_views.py" -v
 ```
 
 Les tests emploient un transport HTTP simulé, sans clé réelle et sans appel réseau. Ils vérifient notamment que chaque édition reçoit l'original, que les sorties sont enregistrées et que les erreurs conservent les résultats partiels. Ils ne mesurent pas la qualité artistique ni l'accès réel de votre compte.

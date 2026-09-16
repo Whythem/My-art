@@ -13,7 +13,7 @@ import httpx
 from openai import OpenAI
 from PIL import Image
 
-import generate_views as app
+from my_art import generate_views as app
 
 
 def sample_png(color="navy"):

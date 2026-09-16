@@ -1,0 +1,4 @@
+-r museum.txt
+-r imagegen.txt
+# Transport HTTP simulé utilisé directement par les tests du générateur.
+httpx>=0.23.0,<1.0.0

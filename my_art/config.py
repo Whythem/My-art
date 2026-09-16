@@ -4,7 +4,7 @@ import os
 
 from dotenv import load_dotenv
 
-ROOT = Path(__file__).resolve().parents[1]
+from .paths import ROOT
 MODELS = {
     "eu.amazon.nova-pro-v1:0": True,
     "eu.amazon.nova-lite-v1:0": True,
@@ -16,7 +16,7 @@ MODELS = {
 @dataclass(frozen=True)
 class Settings:
     data_dir: Path
-    region: str = "eu-west-1"
+    region: str = "eu-west-3"
     model_id: str = "eu.amazon.nova-pro-v1:0"
     max_context_chars: int = 40_000
     max_output_tokens: int = 3_000

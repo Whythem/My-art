@@ -14,8 +14,9 @@ from PIL import Image
 from pypdf import PdfWriter
 
 from my_art.bedrock import BedrockModel, Completion, ModelError
-from my_art.cli import init_demo
-from my_art.config import ROOT, Settings
+from my_art.demo import init_demo
+from my_art.config import Settings
+from my_art.paths import ROOT
 from my_art.corpus import Catalog, DirectContextProvider
 from my_art.service import MuseumService
 from my_art.schemas import VISIT_SCHEMA
@@ -242,8 +243,8 @@ class AppTests(unittest.TestCase):
         fake = Mock()
         service = MuseumService(settings, DirectContextProvider(settings.data_dir), fake)
         with patch("my_art.config.Settings.from_env", return_value=settings), \
-                patch("my_art.cli.make_service", return_value=service), \
-                patch("my_art.cli.save_result", return_value=Path("test-result.json")):
+                patch("my_art.ui.make_service", return_value=service), \
+                patch("my_art.ui.save_result", return_value=Path("test-result.json")):
             app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
             self.assertEqual(len(app.exception), 0)
             app.radio[0].set_value("Suivre une visite guidée")

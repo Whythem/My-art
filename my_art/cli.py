@@ -1,39 +1,15 @@
 import argparse
 from dataclasses import replace
-from datetime import datetime, timezone
-import json
 from pathlib import Path
-import shutil
 import sys
-from uuid import uuid4
 
-from .bedrock import BedrockModel, ModelError
-from .config import MODELS, ROOT, Settings
-from .corpus import Catalog, DirectContextProvider
-from .service import MuseumService
+from .bedrock import ModelError
+from .config import MODELS, Settings
+from .corpus import Catalog
 from .importer import import_artwork
+from .demo import init_demo
+from .runtime import make_service, save_result
 from .visuals import MockImageProvider, VisualRequest
-
-
-def make_service(settings: Settings) -> MuseumService:
-    return MuseumService(settings, DirectContextProvider(settings.data_dir, settings.max_context_chars),
-                         BedrockModel(settings))
-
-
-def save_result(result: dict, output: Path | None = None) -> Path:
-    parent = output or ROOT / "output" / "museum"
-    run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "-" + uuid4().hex[:8]
-    folder = parent / run_id
-    folder.mkdir(parents=True, exist_ok=False)
-    path = folder / "result.json"
-    path.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
-    return path
-
-
-def init_demo(target: Path) -> None:
-    if target.exists() and any(target.iterdir()):
-        raise ValueError("Le dossier de données n'est pas vide. Aucun fichier n'a été remplacé.")
-    shutil.copytree(ROOT / "examples" / "museum", target, dirs_exist_ok=True)
 
 
 def main(argv=None) -> int:

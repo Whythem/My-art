@@ -1,5 +1,7 @@
 # Premier POC : documentation et visite avec Bedrock
 
+[Accueil](../../README.md) · [Architecture](../architecture.md)
+
 Cette version permet de tester l'explication des œuvres avec les modèles Nova déjà disponibles. Les documents d'une œuvre sont intégralement joints à la demande, dans une limite explicite. **Ce n'est pas encore un RAG vectoriel** : aucun embedding, index distant ou modèle externe n'est requis.
 
 ## Ce qui fonctionne
@@ -21,10 +23,10 @@ Depuis la racine du dépôt, avec Python 3.10 ou ultérieur :
 
 ```powershell
 py -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -r requirements-bedrock.txt
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
 ```
 
-Si l'environnement `.venv` existe déjà, sautez la première commande. Ces dépendances sont indépendantes du script expérimental OpenAI `generate_views.py`, qui reste disponible avec `requirements.txt` mais n'est jamais appelé par le musée.
+Si l'environnement `.venv` existe déjà, sautez la première commande. Ces dépendances sont indépendantes du script expérimental OpenAI `my_art/generate_views.py`, qui reste disponible avec `requirements/imagegen.txt` mais n'est jamais appelé par le musée.
 
 Pour découvrir le fonctionnement sans tableau réel ni identifiants :
 
@@ -44,7 +46,7 @@ Ouvrez l'adresse locale affichée, normalement `http://127.0.0.1:8501`. Choisiss
 Ajoutez les variables suivantes à votre `.env` local, sans écraser les éventuelles autres clés :
 
 ```dotenv
-AWS_REGION=eu-west-1
+AWS_REGION=eu-west-3
 BEDROCK_MODEL_ID=eu.amazon.nova-pro-v1:0
 MUSEUM_DATA_DIR=data
 ```
@@ -71,7 +73,7 @@ Références AWS : [utiliser une clé Bedrock](https://docs.aws.amazon.com/bedro
 
 ## Ajouter une vraie œuvre
 
-Le tableau Het Steen et ses vues préparées sont disponibles : voir le [guide du test Het Steen](het-steen-poc.md) pour l'import et la simulation sans réseau.
+Le tableau Het Steen et ses vues préparées sont disponibles : voir le [guide du test Het Steen](het-steen.md) pour l'import et la simulation sans réseau.
 
 Le dossier administrateur par défaut est `data/`, exclu de Git :
 
@@ -126,36 +128,13 @@ Il n'y a ni relance automatique ni appel de réparation lorsqu'une réponse est 
 
 ## Architecture et limites de fiabilité
 
-```mermaid
-flowchart LR
-    UI[Interface ou CLI] --> Service[Orchestrateur borné]
-    Docs[Documents par œuvre] --> Context[DirectContextProvider]
-    Context --> Service
-    Image[Image facultative] --> Service
-    Service --> Nova[Bedrock Converse : Nova]
-    Nova --> Validation[Schéma et contrôle des citations]
-    Validation --> Mock[Fournisseur image simulé : vues préparées]
-    Mock --> Result[Étapes, sources et vues pédagogiques]
-    Result --> UI
-```
-
-L'orchestrateur réalise une séquence fixe avec un appel au modèle. Nova choisit le contenu des étapes et les zones visuelles via le contrat `present_visit`. Après validation, l'orchestrateur demande chaque vue au fournisseur local simulé. **Il ne s'agit pas encore d'une boucle d'agents autonomes** : aucun service externe de génération d'image n'est appelé.
+L’[architecture actuelle](../architecture.md) décrit les modules, le flux de données et les contrats de fournisseurs. Le musée suit une séquence fixe : préparation du contexte, appel à Nova, validation des citations, puis sélection des vues locales. Il n’exécute pas de boucle d’agents autonomes.
 
 Le contrôle refuse les références inconnues, les citations absentes des passages, les affirmations documentaires sans référence et les observations visuelles sans image. Il ne prouve pas qu'une citation étaye réellement toutes les affirmations de l'étape. Le modèle peut encore faire une mauvaise interprétation, ignorer une contradiction ou confondre un détail. Une relecture humaine reste nécessaire. Les instructions de séparation entre données et consignes réduisent les risques d'injection documentaire sans les éliminer.
 
 L'interface est un banc de test local, sans authentification administrateur et sans conformité d'accessibilité revendiquée. Ne la publiez pas telle quelle : une interface destinée aux visiteurs nécessitera des contrôles d'accès, une revue d'accessibilité et une politique de données.
 
-## Ajouter les services futurs
-
-| Besoin futur | Point d'intégration |
-| --- | --- |
-| Recherche textuelle ou embeddings | Remplacer `DirectContextProvider` par un autre `ContextProvider` conservant les passages et leur provenance. |
-| Autre modèle d'explication | Implémenter le contrat `VisitModel.complete` qui retourne un `Completion`, puis conserver la validation de sortie. |
-| Génération d'images | Remplacer `MockImageProvider` par une implémentation de `ImageProvider.generate` ; valider les vues avant affichage. |
-| Narration audio | Synthétiser le texte des étapes après validation, avec cache par texte et voix. |
-| Questions vocales | Transcrire l'audio, puis transmettre le texte à `prepare`, sans modifier le parcours documentaire. |
-
-Les champs `capabilities` des résultats indiquent explicitement les fonctions non implémentées. Le module image OpenAI existant reste une expérimentation indépendante. Aucun provisionnement cloud n'est effectué par ce POC.
+Les prochaines évolutions et leurs critères de validation sont regroupés dans la [feuille de route](../roadmap.md). Le champ `capabilities` des résultats distingue les fonctions disponibles de celles qui restent à implémenter.
 
 ## Vérification sans identifiants ni coût API
 
@@ -163,6 +142,6 @@ Les champs `capabilities` des résultats indiquent explicitement les fonctions n
 .\.venv\Scripts\python.exe -m unittest discover -s tests -p "test_museum.py" -v
 ```
 
-Les tests emploient le validateur du SDK Bedrock avec réponses simulées et le banc de test Streamlit. Ils couvrent le contexte, l'isolation entre œuvres, les citations inventées, les échecs, le mode sans image et l'interface. Les tests du script OpenAI restent séparés dans `test_generate_views.py` et nécessitent `requirements.txt`.
+Les tests emploient le validateur du SDK Bedrock avec réponses simulées et le banc de test Streamlit. Ils couvrent le contexte, l'isolation entre œuvres, les citations inventées, les échecs, le mode sans image et l'interface. Les tests du script OpenAI restent séparés dans `test_generate_views.py` et nécessitent `requirements/imagegen.txt`.
 
-Le [jeu de questions de référence](../evaluation/bedrock-questions.json) permet ensuite de comparer les modèles sur les deux corpus fictifs. Les résultats réels de qualité, coût et latence ne sont pas encore mesurés.
+Le [jeu de questions de référence](../../evaluation/bedrock-questions.json) permet ensuite de comparer les modèles sur les deux corpus fictifs. Les résultats réels de qualité, coût et latence ne sont pas encore mesurés.

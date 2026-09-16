@@ -1,6 +1,5 @@
+-r base.txt
 boto3>=1.40.0,<2.0.0
-python-dotenv>=1.0.0,<2.0.0
-Pillow>=11.0.0,<13.0.0
 pydantic>=2.0.0,<3.0.0
 pypdf>=6.0.0,<7.0.0
 streamlit>=1.45.0,<2.0.0

@@ -1,3 +1,2 @@
-openai>=2.0.0,<3.0.0
-python-dotenv>=1.0.0,<2.0.0
-Pillow>=11.0.0,<13.0.0
+# Application principale : musée documentaire Bedrock et interface Streamlit.
+-r requirements/museum.txt

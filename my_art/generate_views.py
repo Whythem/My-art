@@ -18,7 +18,7 @@ from openai import APIConnectionError, APIStatusError, APITimeoutError, OpenAI
 from PIL import Image, UnidentifiedImageError
 
 
-ROOT = Path(__file__).resolve().parent
+from .paths import ROOT
 MAX_INPUT_BYTES = 20 * 1024 * 1024
 FORMATS = {"PNG": ("png", "image/png"), "JPEG": ("jpg", "image/jpeg"),
            "WEBP": ("webp", "image/webp")}

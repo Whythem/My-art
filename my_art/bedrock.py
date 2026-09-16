@@ -1,4 +1,4 @@
-"""Adaptateur Bedrock Converse ; aucun appel à un fournisseur externe."""
+"""Adaptateur AWS Bedrock Converse ; client créé lors de la première demande."""
 
 from dataclasses import dataclass
 import os
