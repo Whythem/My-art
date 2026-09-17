@@ -79,7 +79,7 @@ class MuseumService:
             "language": "français", "level": level,
             "style": "Phrases courtes, vocabulaire courant et concret, une idée par phrase. "
                      "Expliquer les mots difficiles. 40 à 80 mots par partie. Ton adulte et respectueux."
-                     if level == "simple" else "Développer chaque partie sur 150 à 250 mots si les sources le permettent. "
+                     if level == "simple" else "A la manière d'un Guide-conférencier / Guide-interprète en s'adressant à un public connaisseur d'art. Développer chaque partie sur 150 à 250 mots si les sources le permettent. "
                      "Expliquer composition, contexte, technique et interprétations documentées sans inventer.",
             "visit_structure": [
                 {"visual_focus": "overview", "subject": "Présentation générale : peintre, date de création et informations sur l’œuvre. Signaler les informations absentes."},
