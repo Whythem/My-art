@@ -122,7 +122,9 @@ class MuseumTests(unittest.TestCase):
         cases = []
         bad = copy.deepcopy(payload)
         bad["steps"][0]["evidence"][0]["source_id"] = "unknown"
-        cases.append(bad)
+        resolved = self.service._validate(bad, prepared)
+        self.assertEqual(resolved.steps[0].evidence[0].source_id,
+                         payload["steps"][0]["evidence"][0]["source_id"])
         bad = copy.deepcopy(payload)
         bad["steps"][0]["evidence"][0]["quote"] = "Une citation inventée qui ne figure dans aucun document."
         cases.append(bad)
@@ -257,8 +259,8 @@ class AppTests(unittest.TestCase):
             fake.complete.return_value = Completion({"status": "answered", "steps": [{
                 "title": "Une démonstration", "text": "Cette œuvre est fictive.", "basis": "document",
                 "evidence": [{"source_id": source.id, "quote": source.text}],
-                "visual_focus": "none", "visual_target": "",
-            }]}, {})
+                "visual_focus": focus, "visual_target": "",
+            } for focus in ("overview", "foreground", "midground")]}, {})
             app.button[1].click().run()
             self.assertEqual(len(app.exception), 0)
             fake.complete.assert_called_once()

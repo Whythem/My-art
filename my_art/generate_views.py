@@ -22,7 +22,7 @@ from .paths import ROOT
 MAX_INPUT_BYTES = 20 * 1024 * 1024
 FORMATS = {"PNG": ("png", "image/png"), "JPEG": ("jpg", "image/jpeg"),
            "WEBP": ("webp", "image/webp")}
-VIEWS = ("premier_plan", "arriere_plan", "detail")
+VIEWS = ("premier_plan", "second_plan", "arriere_plan", "detail")
 
 BASE_PROMPT = """Crée une vue pédagogique modifiée pour un musée à partir de
 l'image fournie. Cette image est le tableau à éditer, pas une inspiration pour
@@ -37,14 +37,20 @@ Si les plans sont ambigus, reste conservateur : n'invente pas de séparation.
 
 
 def build_prompts(detail: str) -> dict[str, str]:
-    return {
+    prompts = {
         "premier_plan": BASE_PROMPT + "\nConserve uniquement les éléments visibles "
         "du premier plan. Masque les autres plans avec le gris clair uni.",
+        "second_plan": BASE_PROMPT + "\nConserve uniquement les éléments visibles "
+        "du second plan, entre le premier plan et l’arrière-plan lointain. Masque les autres "
+        "plans avec le gris clair uni, sans reconstruire les parties cachées.",
+        "detail": BASE_PROMPT + "\nConserve uniquement le détail visible suivant : " + detail
+        + ". Masque le reste avec le gris clair uni. Si ce détail est absent, ne l’invente pas.",
         "arriere_plan": BASE_PROMPT + "\nConserve uniquement les portions déjà "
         "visibles de l'arrière-plan. Remplace le premier plan par du gris clair "
         "uni, y compris les trous ainsi laissés. Ne reconstitue jamais le décor "
         "caché derrière les personnages ou objets."
     }
+    return {name: prompts[name] for name in VIEWS}
 
 
 def read_image(path: Path) -> tuple[bytes, dict]:

@@ -115,3 +115,46 @@ Les tests simulent les fournisseurs et couvrent les citations, l’isolation des
 - [Évaluation](evaluation/README.md) : utilisation des questions de référence.
 
 Le contrôle des références ne garantit pas la justesse d’une interprétation. Les explications et vues doivent être relues. L’interface reste un banc de test local, sans authentification ni conformité d’accessibilité revendiquée.
+
+
+## Parcours accessible et documents personnels
+
+La visite guidée est sélectionnée par défaut. Une visite validée contient exactement
+**trois parties**, affichées une à la fois : présentation générale (peintre, date et
+contexte documentés), premier plan, second plan. Les étapes de plans affichent
+uniquement leur vue préparée. Une vue manquante est signalée sans la remplacer
+par l’original. L’original reste accessible dans la présentation générale.
+
+Le niveau **Simple** demande des phrases courtes, un vocabulaire concret et 40 à
+80 mots par partie. Le niveau **Détaillé** demande 150 à 250 mots par partie si les
+sources le permettent. Ces longueurs sont des consignes au modèle, pas une garantie.
+L’ordre des trois parties et les citations sont contrôlés avant affichage.
+
+Les documents sont associés à chaque œuvre par son identifiant. Trois emplacements
+sont lus ensemble, sans mélanger les tableaux :
+
+- `data/documents/<identifiant>/` (emplacement historique conservé) ;
+- `data/artworks/documents/<identifiant>/` ;
+- `data/artworks/<identifiant>/documents/`.
+
+Le dossier réservé `data/artworks/documents/` ne devient pas une œuvre du catalogue.
+Les TXT sont en UTF-8. Dans l’interface, le visiteur peut aussi ajouter des TXT avant
+la génération : 10 fichiers maximum de 1 Mo chacun, dans la limite totale du
+contexte de 40 000 caractères et 150 passages. Les fichiers ajoutés ne sont pas
+installés dans le catalogue. Leur texte est envoyé au modèle lors de la demande
+et conservé dans le JSON local du résultat, avec les citations et leur provenance.
+
+Le sélecteur **Contraste des images** propose Normal, Élevé (high contrast) et
+Doux (low contrast). Il ajuste l’affichage sans modifier les fichiers ni l’image
+transmise au modèle. Il ne constitue pas une correction universelle du daltonisme.
+
+La consigne commune est centralisée dans `my_art/master_prompt.txt`. Bedrock
+l’applique automatiquement aux questions et aux visites ; l’utilisateur n’a rien
+à copier. Elle est consultable dans la barre latérale.
+
+Le générateur autonome propose désormais `premier_plan`, `second_plan`,
+`arriere_plan` et `detail` (quatre éditions par défaut). Pour ne préparer que les
+deux plans de la visite, utiliser `--views premier_plan second_plan`. Après
+vérification humaine, placer ces PNG dans le dossier de l’œuvre : la découverte
+automatique reconnaît leurs noms. La génération à la volée reste séparée de
+l’interface du musée.

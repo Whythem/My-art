@@ -67,7 +67,7 @@ class EntrypointTests(unittest.TestCase):
             manifest = json.loads(manifests[0].read_text(encoding="utf-8"))
             self.assertEqual(manifest["model"], "offline-test-model")
             self.assertEqual(manifest["status"], "dry_run")
-            self.assertEqual(len(manifest["views"]), 3)
+            self.assertEqual(len(manifest["views"]), 4)
             self.assertEqual((manifests[0].parent / "original.png").read_bytes(), original.read_bytes())
             self.assertFalse((working / "output").exists())
 

@@ -9,7 +9,7 @@ from typing import Literal
 from pydantic import ValidationError
 
 from .config import MODELS, Settings
-from .corpus import Catalog, Context, ContextProvider
+from .corpus import Catalog, Context, ContextProvider, with_uploads
 from .bedrock import VisitModel
 from .schemas import Artwork, Visit
 from .visuals import ImageProvider, MockImageProvider, VisualRequest
@@ -47,7 +47,8 @@ class MuseumService:
         self.image_provider = image_provider or MockImageProvider(self.catalog)
 
     def prepare(self, artwork_id: str, question: str = "", mode: Literal["ask", "visit"] = "ask",
-                level: Literal["simple", "detaille"] = "simple", include_image: bool = True) -> Prepared:
+                level: Literal["simple", "detaille"] = "simple", include_image: bool = True,
+                documents: list[tuple[str, bytes]] | None = None) -> Prepared:
         if mode not in {"ask", "visit"} or level not in {"simple", "detaille"}:
             raise ValueError("Mode ou niveau inconnu.")
         if mode == "ask" and not question.strip():
@@ -56,16 +57,25 @@ class MuseumService:
             raise ValueError("Question trop longue (maximum 2000 caractères).")
         artwork = self.catalog.get(artwork_id)
         context = self.context_provider.retrieve(artwork_id, question)
+        if documents:
+            context = with_uploads(context, artwork_id, documents, self.settings.max_context_chars)
         image = None
         if include_image and artwork.image:
             if not MODELS[self.settings.model_id]:
                 raise ValueError("Nova Micro n'accepte pas d'image : désactivez l'analyse visuelle.")
             image = self.catalog.image_bytes(artwork)
         prompt = json.dumps({
-            "task": "Répondre à la question" if mode == "ask" else "Créer une visite guidée courte",
+            "task": "Répondre à la question" if mode == "ask" else "Créer une visite guidée en exactement trois parties",
             "language": "français", "level": level,
-            "style": "Phrases courtes, vocabulaire courant, une idée par étape."
-                     if level == "simple" else "Expliquer les termes et développer sans inventer.",
+            "style": "Phrases courtes, vocabulaire courant et concret, une idée par phrase. "
+                     "Expliquer les mots difficiles. 40 à 80 mots par partie. Ton adulte et respectueux."
+                     if level == "simple" else "Développer chaque partie sur 150 à 250 mots si les sources le permettent. "
+                     "Expliquer composition, contexte, technique et interprétations documentées sans inventer.",
+            "visit_structure": [
+                {"visual_focus": "overview", "subject": "Présentation générale : peintre, date de création et informations sur l’œuvre. Signaler les informations absentes."},
+                {"visual_focus": "foreground", "subject": "Premier plan uniquement : éléments, positions et explications documentées."},
+                {"visual_focus": "midground", "subject": "Second plan uniquement : éléments, positions et explications documentées."},
+            ] if mode == "visit" else None,
             "question": question.strip(), "artwork": artwork.model_dump(),
             "image_attached": image is not None,
             "response_contract": {
@@ -124,6 +134,8 @@ class MuseumService:
             return visit
         if not visit.steps:
             raise ValueError("Le modèle a renvoyé une réponse vide.")
+        if prepared.mode == "visit" and [step.visual_focus for step in visit.steps] != ["overview", "foreground", "midground"]:
+            raise ValueError("La visite doit contenir trois parties : présentation générale, premier plan, second plan.")
         sources = {s.id: s for s in prepared.context.sources}
         def normalize(text: str) -> str:
             text = unicodedata.normalize("NFKC", text)
@@ -134,6 +146,8 @@ class MuseumService:
         for step in visit.steps:
             if step.basis == "document" and not step.evidence:
                 raise ValueError("Affirmation documentaire sans source : réponse rejetée.")
+            if step.basis == "observation" and step.evidence:
+                raise ValueError("Une observation visuelle ne doit pas contenir de citations documentaires.")
             if step.basis == "observation" and prepared.image is None:
                 raise ValueError("Observation visuelle sans image fournie : réponse rejetée.")
             # Ces libellés pilotent l'affichage, sans ajouter d'affirmation sur l'œuvre.

@@ -68,7 +68,7 @@ class ImageGenerationTests(unittest.TestCase):
             success = app.generate(self.client(handler), self.source, self.metadata,
                                    self.folder, manifest)
         self.assertTrue(success)
-        self.assertEqual(len(requests), 3)
+        self.assertEqual(len(requests), len(app.VIEWS))
         self.assertEqual(manifest["status"], "completed_unreviewed")
         for view in manifest["views"]:
             self.assertIn(view["prompt"].encode(), requests[app.VIEWS.index(view["name"])])
@@ -120,7 +120,7 @@ class ImageGenerationTests(unittest.TestCase):
             self.assertEqual((run / "original.png").read_bytes(), self.source)
             manifest = json.loads((run / "manifest.json").read_text(encoding="utf-8"))
             self.assertEqual(manifest["status"], "dry_run")
-            self.assertEqual(len(manifest["views"]), 3)
+            self.assertEqual(len(manifest["views"]), len(app.VIEWS))
 
     def test_invalid_input_fails_before_api(self):
         broken = self.root / "invalid.png"

@@ -76,7 +76,7 @@ class Catalog:
         directory = within(self.root, self.root / "artworks")
         if not directory.exists():
             return []
-        return [self.get(p.name) for p in sorted(directory.iterdir()) if p.is_dir()]
+        return [self.get(p.name) for p in sorted(directory.iterdir()) if p.is_dir() and p.name != "documents"]
 
     def image_bytes(self, artwork: Artwork) -> bytes | None:
         if not artwork.image:
@@ -110,13 +110,19 @@ class DirectContextProvider:
 
     def retrieve(self, artwork_id: str, question: str = "") -> Context:
         Catalog(self.root).artwork_dir(artwork_id)  # Valider l'identifiant avant tout accès.
-        folder = within(self.root, self.root / "documents" / artwork_id)
+        folders = [within(self.root, self.root / "documents" / artwork_id),
+                   within(self.root, self.root / "artworks" / "documents" / artwork_id),
+                   within(self.root, self.root / "artworks" / artwork_id / "documents")]
         sources = []
         total = 0
-        if folder.exists():
+        file_count = 0
+        for folder in folders:
+            if not folder.exists():
+                continue
             paths = sorted(folder.rglob("*"))
             files = [within(folder, p) for p in paths if p.is_file()]
-            if len(files) > 30:
+            file_count += len(files)
+            if file_count > 30:
                 raise ValueError("Maximum 30 fichiers par œuvre dans ce POC.")
             for path in files:
                 if path.suffix.lower() not in {".md", ".txt", ".pdf"}:
@@ -141,7 +147,7 @@ class DirectContextProvider:
                                 raise ValueError(
                                     f"Corpus trop long (limite {self.max_chars} caractères). "
                                     "Réduisez le corpus avant le test ; aucune troncature automatique.")
-                            name = path.relative_to(folder).as_posix()
+                            name = path.relative_to(self.root).as_posix()
                             locator = f"{location}, paragraphe {paragraph_index}, bloc {start // 3000 + 1}"
                             identity = json.dumps([artwork_id, name, locator, passage], ensure_ascii=False)
                             sid = "s-" + sha256(identity.encode()).hexdigest()[:20]
@@ -167,3 +173,38 @@ class DirectContextProvider:
         except Exception as exc:
             raise ValueError(f"Impossible d'extraire complètement le PDF {path.name}. "
                              "Vérifiez le texte, le chiffrement et la limite de 50 pages.") from exc
+
+
+def with_uploads(context: Context, artwork_id: str, documents: list[tuple[str, bytes]],
+                 max_chars: int = 40_000) -> Context:
+    """Ajoute des TXT en mémoire, sans écrire de fichier ni partager entre œuvres."""
+    if len(documents) > 10:
+        raise ValueError("Maximum 10 documents personnels par demande.")
+    sources = list(context.sources)
+    total = sum(len(source.text) for source in sources)
+    for index, (name, data) in enumerate(documents, 1):
+        name = name.replace("\\", "/").rsplit("/", 1)[-1]
+        if not name.lower().endswith(".txt") or len(data) > 1_000_000:
+            raise ValueError("Les documents personnels doivent être des TXT de moins de 1 Mo.")
+        try:
+            text = data.decode("utf-8-sig")
+        except UnicodeError as exc:
+            raise ValueError("Les documents personnels doivent être encodés en UTF-8.") from exc
+        if not text.strip() or "\x00" in text:
+            raise ValueError("Document personnel vide ou non textuel.")
+        for paragraph_index, paragraph in enumerate(re.split(r"\n\s*\n", text), 1):
+            paragraph = paragraph.strip()
+            for start in range(0, len(paragraph), 3000):
+                passage = paragraph[start:start + 3000]
+                total += len(passage)
+                if total > max_chars:
+                    raise ValueError(f"Corpus trop long (limite {max_chars} caractères), documents personnels inclus.")
+                location = f"texte, paragraphe {paragraph_index}, bloc {start // 3000 + 1}"
+                identity = json.dumps([artwork_id, index, name, location, passage], ensure_ascii=False)
+                sources.append(Source("u-" + sha256(identity.encode()).hexdigest()[:20],
+                                      f"Ajout personnel {index} : {name}", location, passage))
+    if total > max_chars or len(sources) > 150:
+        raise ValueError("Contexte trop volumineux : maximum 150 passages et limite de caractères dépassée.")
+    version = sha256(json.dumps([asdict(s) for s in sources], ensure_ascii=False,
+                                sort_keys=True).encode()).hexdigest()
+    return Context(sources, version)
