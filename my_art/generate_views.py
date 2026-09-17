@@ -43,10 +43,7 @@ def build_prompts(detail: str) -> dict[str, str]:
         "arriere_plan": BASE_PROMPT + "\nConserve uniquement les portions déjà "
         "visibles de l'arrière-plan. Remplace le premier plan par du gris clair "
         "uni, y compris les trous ainsi laissés. Ne reconstitue jamais le décor "
-        "caché derrière les personnages ou objets.",
-        "detail": BASE_PROMPT + "\nConserve uniquement cet élément visible : "
-        + detail + ". Masque tout le reste avec le gris clair uni. Si cet élément "
-        "n'est pas visible, ne l'invente pas.",
+        "caché derrière les personnages ou objets."
     }
 
 

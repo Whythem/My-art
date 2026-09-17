@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 from hashlib import sha256
 import json
+import unicodedata
 from typing import Literal
 
 from pydantic import ValidationError
@@ -67,6 +68,11 @@ class MuseumService:
                      if level == "simple" else "Expliquer les termes et développer sans inventer.",
             "question": question.strip(), "artwork": artwork.model_dump(),
             "image_attached": image is not None,
+            "response_contract": {
+                "document_step": "evidence obligatoire: source_id exact et quote copiee mot a mot depuis documents",
+                "observation_step": "evidence doit etre une liste vide; decrire uniquement ce qui est visible dans image",
+                "when_uncertain": "renvoyer status=insufficient_sources et steps=[]",
+            },
             "available_visuals": {focus: view.model_dump(exclude={"file"})
                                   for focus, view in artwork.views.items()},
             "documents": context.as_dict(),
@@ -119,7 +125,12 @@ class MuseumService:
         if not visit.steps:
             raise ValueError("Le modèle a renvoyé une réponse vide.")
         sources = {s.id: s for s in prepared.context.sources}
-        normalize = lambda text: " ".join(text.split())
+        def normalize(text: str) -> str:
+            text = unicodedata.normalize("NFKC", text)
+            text = (text.replace("’", "'").replace("‘", "'")
+                .replace("“", '"').replace("”", '"')
+                .replace("–", "-").replace("—", "-"))
+            return " ".join(text.split()).strip("\"'")
         for step in visit.steps:
             if step.basis == "document" and not step.evidence:
                 raise ValueError("Affirmation documentaire sans source : réponse rejetée.")
@@ -136,6 +147,13 @@ class MuseumService:
                 }[step.visual_focus]
             for evidence in step.evidence:
                 source = sources.get(evidence.source_id)
-                if source is None or normalize(evidence.quote) not in normalize(source.text):
+                quote = normalize(evidence.quote)
+                if source is None or quote not in normalize(source.text):
+                    matches = [candidate for candidate in sources.values()
+                               if quote in normalize(candidate.text)]
+                    if len(matches) == 1:
+                        # Le hash source_id est résolu par une citation exacte et unique.
+                        evidence.source_id = matches[0].id
+                        continue
                     raise ValueError("Référence ou citation non retrouvée dans le corpus : réponse rejetée.")
         return visit

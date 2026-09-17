@@ -32,7 +32,11 @@ class Step(StrictModel):
     title: str = Field(min_length=1, max_length=150)
     text: str = Field(min_length=1, max_length=2000)
     basis: Literal["document", "observation"]
-    evidence: list[Evidence] = Field(max_length=6)
+    evidence: list[Evidence] = Field(
+        max_length=6,
+        description=("Pour basis=document, fournir au moins une citation exacte. "
+                      "Pour basis=observation, laisser cette liste vide."),
+    )
     visual_focus: Literal["none", "overview", "foreground", "midground", "background", "detail"]
     visual_target: str = Field(max_length=500)
 
@@ -58,7 +62,19 @@ def _visit_schema() -> dict:
                      if key == "properties" else inline(item))
                 for key, item in value.items() if key != "title"}
 
-    return inline(schema)
+    schema = inline(schema)
+    step_schema = schema["properties"]["steps"]["items"]
+    step_schema["allOf"] = [
+        {
+            "if": {"properties": {"basis": {"const": "document"}}},
+            "then": {"properties": {"evidence": {"minItems": 1}}},
+        },
+        {
+            "if": {"properties": {"basis": {"const": "observation"}}},
+            "then": {"properties": {"evidence": {"maxItems": 0}}},
+        },
+    ]
+    return schema
 
 
 VISIT_SCHEMA = _visit_schema()

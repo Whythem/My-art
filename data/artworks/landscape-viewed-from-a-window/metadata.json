@@ -2,8 +2,19 @@
   "id": "landscape-viewed-from-a-window",
   "title": "Landscape Viewed from a Window",
   "artist": "Henri Matisse",
-  "image": null,
-  "image_alt": "",
+  "image": "landscape-viewed-from-a-window.jpg",
+  "image_alt": "Vue intérieure ouverte sur un paysage méditerranéen très coloré. Au premier plan, sur l'appui de fenêtre, une cruche bleue et un pot orange de fleurs encadrent la vue. Au second plan, des bâtiments blancs, des toits verts, des arbres et un chemin jaune s'étendent vers l'horizon.",
   "demo": false,
-  "views": {}
+  "views": {
+    "foreground": {
+      "file": "firstplan.png",
+      "label": "Premier plan",
+      "description": "Vue pédagogique préparée : l'encadrement bleu de la fenêtre et les deux vases fleuris posés sur l'appui. Le paysage extérieur est masqué en gris."
+    },
+    "midground": {
+      "file": "secondplan.png",
+      "label": "Second plan et paysage",
+      "description": "Vue pédagogique préparée : les bâtiments blancs, les toits verts, les arbres, le chemin jaune et l'horizon. Les objets proches de l'appui sont masqués en gris."
+    }
+  }
 }
