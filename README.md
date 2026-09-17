@@ -61,7 +61,7 @@ Déposez les images dans `data/artworks/<identifiant>/` et les documents TXT, Ma
 - **Vues** : `firstplan` / `premier_plan` / `foreground`, `secondplan` / `second_plan` / `midground`, `arriere_plan` / `background` et `detail`.
 - **Notice** : `metadata.json` permet de préciser le titre, l’artiste, les descriptions et les fichiers à utiliser. Ses choix explicites restent prioritaires. Sans notice, le titre vient du dossier et l’artiste reste « Artiste non renseigné ».
 
-L’interface surveille les ajouts, modifications et suppressions toutes les **3 secondes** tant que la session est active. Le catalogue est également relu à chaque commande CLI. Aucun appel IA n’est déclenché par cette détection et aucune notice n’est réécrite.
+L’interface surveille les ajouts, modifications et suppressions toutes les **3 secondes** tant que la session est active. Elle prépare automatiquement les plans manquants via le générateur simulé décrit ci-dessous. Aucun appel IA réel n’est déclenché par cette détection et aucune notice n’est réécrite. Le catalogue est également relu à chaque commande CLI.
 
 En cas de plusieurs fichiers candidats au même rang, précisez le champ `image` ou `views` dans la notice. Les fichiers reconnus comme vues ne sont pas choisis comme original. Une association par nom de fichier ne valide pas le contenu artistique de l’image.
 
@@ -172,3 +172,32 @@ deux plans de la visite, utiliser `--views premier_plan second_plan`. Après
 vérification humaine, placer ces PNG dans le dossier de l’œuvre : la découverte
 automatique reconnaît leurs noms. La génération à la volée reste séparée de
 l’interface du musée.
+
+## Simulation de génération et cache persistant
+
+Lorsqu’une nouvelle œuvre avec un original apparaît dans l’interface, les deux
+plans manquants sont préparés automatiquement. La même préparation est effectuée
+à l’import et avant une demande CLI, y compris un aperçu sans réseau. Un original
+absent ou ambigu doit être renseigné avant de pouvoir préparer les plans.
+
+- Un plan fourni dans le catalogue est utilisé tel quel, sans génération.
+- Un plan absent déclenche un appel au `SimulatedImageGenerator` et est enregistré
+  dans `data/artworks/<identifiant>/.generated_views/`.
+- Les visites suivantes, y compris après redémarrage, réutilisent ces fichiers.
+- La clé de cache contient l’empreinte SHA-256 de l’original, le plan, la consigne
+  et la version du simulateur. Remplacer l’original ou changer ces paramètres
+  prépare un nouveau cache ; ajouter un document ne relance pas la génération.
+- Un fichier supprimé ou corrompu est recréé. Un verrou entre processus évite
+  les doubles générations simultanées. Les fichiers manuels restent prioritaires.
+
+Chaque image possède un manifeste JSON contenant sa provenance, les empreintes,
+la consigne, la date et l’identifiant de l’appel simulé. L’interface et les résultats
+JSON distinguent les créations, les lectures du cache et les plans déjà fournis.
+Le cache reste sur le disque local et est exclu de Git. Les anciennes versions
+sont conservées et ne sont plus sélectionnées si l’original a changé.
+
+**Cette simulation copie l’original normalisé en JPEG : elle ne sépare pas les
+plans.** Ces images de test sont signalées dans l’interface et dans le contexte
+transmis au modèle. Aucun service de génération n’est appelé, aucun token de
+génération d’image n’est consommé. Les demandes d’explication à Bedrock restent
+des appels distincts. Les vrais plans déjà fournis continuent à être utilisés.

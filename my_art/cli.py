@@ -10,6 +10,7 @@ from .importer import import_artwork
 from .demo import init_demo
 from .runtime import make_service, save_result
 from .visuals import MockImageProvider, VisualRequest
+from .view_cache import ensure_artwork_views
 
 
 def main(argv=None) -> int:
@@ -53,8 +54,11 @@ def main(argv=None) -> int:
             print(f"Œuvre importée : {artwork_id}. Aucun appel API.")
             return 0
         if args.command == "mock-image":
-            visual = MockImageProvider(Catalog(settings.data_dir)).generate(
+            catalog = Catalog(settings.data_dir)
+            preparation = ensure_artwork_views(catalog, args.artwork_id)
+            visual = MockImageProvider(catalog).generate(
                 VisualRequest(args.artwork_id, args.focus, "Test manuel de la vue préparée"))
+            visual["visual_preparation"] = preparation
             print(visual["message"])
             print(f"Résultat local : {save_result(visual)}")
             return 0 if visual["status"] == "ready" else 1

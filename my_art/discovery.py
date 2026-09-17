@@ -63,10 +63,13 @@ def discover_images(artwork: Artwork, folder: Path) -> Artwork:
                     "background": "Arrière-plan",
                     "detail": "Détail",
                 }[kind],
-                description=f"{matches[0].stem}.",
+                description=f"Vue pédagogique préparée : {matches[0].stem}.",
             )
 
-    return artwork.model_copy(update={"image": image, "views": views})
+    from .view_cache import cached_views
+    resolved = artwork.model_copy(update={"image": image, "views": views})
+    views.update(cached_views(resolved, folder))
+    return resolved.model_copy(update={"views": views})
 
 
 def catalog_snapshot(data_dir: Path) -> str:

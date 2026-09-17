@@ -4,6 +4,7 @@ from dataclasses import replace
 import json
 
 import streamlit as st
+from my_art.color_filters import color_aid_image
 
 from my_art.bedrock import ModelError, SYSTEM
 from my_art.runtime import make_service, save_result
@@ -18,6 +19,7 @@ DISABILITY_OPTIONS = [
     ("daltonisme", "Daltonisme"),
     ("trisomie", "Trisomie"),
     ("cecite", "Cécité"),
+   # ("aucun", "Aucun"),
 ]
 
 DEFAULT_PROFILE = {
@@ -28,6 +30,7 @@ DEFAULT_PROFILE = {
 }
 
 PROFILE_PRESETS = {
+    "aucun": {"contrast": "Normal", "level": "Détaillé", "show_planes": True, "soundscape": False},
     "daltonisme": {"contrast": "Élevé (high contrast)", "level": "Détaillé", "show_planes": True},
     "trisomie": {"contrast": "Doux (low contrast)", "level": "Simple", "show_planes": True},
     "cecite": {"contrast": "Normal", "level": "Détaillé", "show_planes": False, "soundscape": True},
@@ -43,7 +46,7 @@ CONTRAST_VALUES = {
 def ensure_profile_state():
     for key, value in DEFAULT_PROFILE.items():
         st.session_state.setdefault(f"profile_{key}", value)
-    st.session_state.setdefault("profile_disability", DISABILITY_OPTIONS[0][0])
+    st.session_state.setdefault("profile_disability", "aucun")
     st.session_state.setdefault("profile_disability_previous", None)
     st.session_state.setdefault("profile_saved", False)
 
@@ -75,13 +78,24 @@ def watch_catalog(data_dir, snapshot):
         st.rerun()
 
 
-def show_visual(catalog, visual, artwork_id):
+def filtered_image(source, disability):
+    if disability != "daltonisme":
+        return source
+    try:
+        return color_aid_image(source, "tritanopia")
+    except (ValueError, OSError):
+        return source
+
+
+def show_visual(catalog, visual, artwork_id, disability="aucun"):
     if visual["status"] != "ready":
         st.info(visual["message"])
         return
     try:
         path = asset_path(catalog, artwork_id, visual["file"])
-        st.image(str(path), caption=f"{visual['label']} — vue pédagogique préparée")
+        with st.container(key=f"artwork_image_step_{visual['file']}"):
+            st.image(filtered_image(path.read_bytes(), disability),
+                     caption=f"{visual['label']} — vue pédagogique préparée")
         st.text(visual["description"])
         st.caption("Génération simulée : image déjà fournie, aucun appel API d'images.")
     except (ValueError, OSError):
@@ -130,7 +144,7 @@ def main():
 
     with st.expander("Configurer mon profil", expanded=not st.session_state["profile_saved"]):
         st.radio(
-            "Type de handicap",
+            "Je suis atteint de :",
             [key for key, _label in DISABILITY_OPTIONS],
             format_func=lambda value: next(label for key, label in DISABILITY_OPTIONS if key == value),
             horizontal=True,
@@ -176,7 +190,9 @@ def main():
     try:
         image = catalog.image_bytes(artwork)
         if image and not (current_result and current_result.get("visit", {}).get("status") == "answered"):
-            st.image(image, caption=artwork.image_alt or "Image de référence de l'œuvre")
+            with st.container(key="artwork_image_original"):
+                st.image(filtered_image(image, profile["disability"]),
+                         caption=artwork.image_alt or "Image de référence de l'œuvre")
             if artwork.image_alt:
                 st.write(f"Description de l'image : {artwork.image_alt}")
         elif not image:
@@ -235,9 +251,11 @@ def main():
                     st.subheader(f"{index}. {step['title']}" if result["mode"] == "visit" else step["title"])
                     show_step_visual = profile["show_planes"] or step["visual_focus"] == "overview"
                     if show_step_visual and step.get("visual"):
-                        show_visual(catalog, step["visual"], artwork_id)
+                        show_visual(catalog, step["visual"], artwork_id, profile["disability"])
                     elif show_step_visual and step["visual_focus"] == "overview" and image:
-                        st.image(image, caption=artwork.image_alt or "Tableau original")
+                        with st.container(key="artwork_image_overview"):
+                            st.image(filtered_image(image, profile["disability"]),
+                                     caption=artwork.image_alt or "Tableau original")
                     st.caption("Selon la documentation" if step["basis"] == "document" else "Observation visuelle de l'IA")
                     st.text(step["text"])
                     for evidence in step["evidence"]:

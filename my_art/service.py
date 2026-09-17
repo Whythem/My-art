@@ -14,6 +14,7 @@ from .corpus import Catalog, Context, ContextProvider, with_uploads
 from .bedrock import VisitModel, ModelImage
 from .schemas import Artwork, Visit
 from .visuals import ImageProvider, MockImageProvider, VisualRequest
+from .view_cache import ensure_artwork_views
 
 CAPABILITIES = {"document_context": True, "visual_analysis": True,
                 "embeddings": False, "image_generation": False,
@@ -30,10 +31,12 @@ class Prepared:
     mode: str
     level: str
     images: tuple[ModelImage, ...] = ()
+    visual_preparation: tuple[dict, ...] = ()
 
     def preview(self):
         return {"artwork": self.artwork.model_dump(), "context": self.context.as_dict(),
                 "mode": self.mode, "level": self.level, "prompt": self.prompt,
+                "visual_preparation": list(self.visual_preparation),
                 "image_attached": bool(self.image or self.images),
                 "attached_images": ([{"focus": "overview", "bytes": len(self.image), "sha256": sha256(self.image).hexdigest()}] if self.image else [])
                 + [{"focus": image.focus, "label": image.label, "bytes": len(image.data),
@@ -60,6 +63,7 @@ class MuseumService:
             raise ValueError("Saisissez une question.")
         if len(question) > 2000:
             raise ValueError("Question trop longue (maximum 2000 caractères).")
+        preparation = ensure_artwork_views(self.catalog, artwork_id)
         artwork = self.catalog.get(artwork_id)
         context = self.context_provider.retrieve(artwork_id, question)
         if documents:
@@ -115,7 +119,7 @@ class MuseumService:
                 "Sélectionne les source_id pertinents pour les affirmations documentaires, sans recopier de citation. "
                 "Transmets la réponse via present_visit ; le format sert seulement à l'affichage.")
         prompt = json.dumps(request, ensure_ascii=False)
-        return Prepared(artwork, context, prompt, image, mode, level, tuple(images))
+        return Prepared(artwork, context, prompt, image, mode, level, tuple(images), tuple(preparation))
 
     def run(self, prepared: Prepared) -> dict:
         result = prepared.preview()

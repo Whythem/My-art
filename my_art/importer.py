@@ -45,4 +45,6 @@ def import_artwork(source: Path, data_dir: Path) -> str:
         target.parent.mkdir(parents=True, exist_ok=True)
         if not target.exists():
             target.write_bytes(content)
+    from .view_cache import ensure_artwork_views
+    ensure_artwork_views(catalog, artwork.id)
     return artwork.id

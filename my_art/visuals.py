@@ -66,5 +66,6 @@ class MockImageProvider:
             return response
         response.update(status="ready", file=view.file, label=view.label,
                         description=view.description, sha256=fingerprint,
-                        message="Appel de génération simulé : image fournie, sans modification ni facturation API.")
+                        cache_hit=True, simulated_calls=0,
+                        message="Image réutilisée depuis le disque : aucun nouvel appel de génération.")
         return response
