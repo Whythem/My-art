@@ -82,7 +82,7 @@ def filtered_image(source, disability):
     if disability != "daltonisme":
         return source
     try:
-        return color_aid_image(source, "tritanopia")
+        return color_aid_image(source, "tritanopia", 1)
     except (ValueError, OSError):
         return source
 
@@ -192,7 +192,7 @@ def main():
         if image and not (current_result and current_result.get("visit", {}).get("status") == "answered"):
             with st.container(key="artwork_image_original"):
                 st.image(filtered_image(image, profile["disability"]),
-                         caption=artwork.image_alt or "Image de référence de l'œuvre")
+                         caption="Image de référence de l'œuvre")
             if artwork.image_alt:
                 st.write(f"Description de l'image : {artwork.image_alt}")
         elif not image:
