@@ -82,7 +82,7 @@ class MuseumTests(unittest.TestCase):
         prepared = self.prepared()
         self.model.complete.return_value = Completion(self.payload(prepared), {"inputTokens": 100}, "request-test")
         result = self.service.run(prepared)
-        self.model.complete.assert_called_once_with(prepared.prompt, None)
+        self.model.complete.assert_called_once_with(prepared.prompt, None, mode="ask", images=())
         self.assertEqual(result["calls"], 1)
         self.assertEqual(result["context"]["version"], prepared.context.version)
         self.assertFalse(result["capabilities"]["image_generation"])
@@ -185,7 +185,7 @@ class MuseumTests(unittest.TestCase):
                 completion = adapter.complete(prepared.prompt, b"image-test-bytes")
                 kwargs = invoke.call_args.kwargs
                 self.assertEqual(kwargs["modelId"], "eu.amazon.nova-pro-v1:0")
-                self.assertEqual(kwargs["messages"][0]["content"][1]["image"]["source"]["bytes"], b"image-test-bytes")
+                self.assertEqual(next(block["image"]["source"]["bytes"] for block in kwargs["messages"][0]["content"] if "image" in block), b"image-test-bytes")
                 self.assertEqual(kwargs["toolConfig"]["toolChoice"], {"tool": {"name": "present_visit"}})
                 self.assertEqual(completion.payload, payload)
                 invoke.assert_called_once()

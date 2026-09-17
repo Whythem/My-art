@@ -140,15 +140,15 @@ class DirectContextProvider:
                     paragraphs = [p.strip() for p in re.split(r"\n\s*\n", text) if p.strip()]
                     for paragraph_index, paragraph in enumerate(paragraphs, 1):
                         # Les blocs très longs sont découpés sans perdre de texte.
-                        for start in range(0, len(paragraph), 3000):
-                            passage = paragraph[start:start + 3000]
+                        for start in range(0, len(paragraph), 1000):
+                            passage = paragraph[start:start + 1000]
                             total += len(passage)
                             if total > self.max_chars:
                                 raise ValueError(
                                     f"Corpus trop long (limite {self.max_chars} caractères). "
                                     "Réduisez le corpus avant le test ; aucune troncature automatique.")
                             name = path.relative_to(self.root).as_posix()
-                            locator = f"{location}, paragraphe {paragraph_index}, bloc {start // 3000 + 1}"
+                            locator = f"{location}, paragraphe {paragraph_index}, bloc {start // 1000 + 1}"
                             identity = json.dumps([artwork_id, name, locator, passage], ensure_ascii=False)
                             sid = "s-" + sha256(identity.encode()).hexdigest()[:20]
                             sources.append(Source(sid, name, locator, passage))
@@ -194,12 +194,12 @@ def with_uploads(context: Context, artwork_id: str, documents: list[tuple[str, b
             raise ValueError("Document personnel vide ou non textuel.")
         for paragraph_index, paragraph in enumerate(re.split(r"\n\s*\n", text), 1):
             paragraph = paragraph.strip()
-            for start in range(0, len(paragraph), 3000):
-                passage = paragraph[start:start + 3000]
+            for start in range(0, len(paragraph), 1000):
+                passage = paragraph[start:start + 1000]
                 total += len(passage)
                 if total > max_chars:
                     raise ValueError(f"Corpus trop long (limite {max_chars} caractères), documents personnels inclus.")
-                location = f"texte, paragraphe {paragraph_index}, bloc {start // 3000 + 1}"
+                location = f"texte, paragraphe {paragraph_index}, bloc {start // 1000 + 1}"
                 identity = json.dumps([artwork_id, index, name, location, passage], ensure_ascii=False)
                 sources.append(Source("u-" + sha256(identity.encode()).hexdigest()[:20],
                                       f"Ajout personnel {index} : {name}", location, passage))

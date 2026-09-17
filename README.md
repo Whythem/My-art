@@ -120,15 +120,21 @@ Le contrôle des références ne garantit pas la justesse d’une interprétatio
 ## Parcours accessible et documents personnels
 
 La visite guidée est sélectionnée par défaut. Une visite validée contient exactement
-**trois parties**, affichées une à la fois : présentation générale (peintre, date et
-contexte documentés), premier plan, second plan. Les étapes de plans affichent
-uniquement leur vue préparée. Une vue manquante est signalée sans la remplacer
+**trois parties**, affichées à la suite sous le formulaire : présentation générale (peintre, date et
+contexte documentés), premier plan, second plan. Chaque partie affiche sa vue et son explication, sans sélecteur de plan. Une vue manquante est signalée sans la remplacer
 par l’original. L’original reste accessible dans la présentation générale.
 
 Le niveau **Simple** demande des phrases courtes, un vocabulaire concret et 40 à
 80 mots par partie. Le niveau **Détaillé** demande 150 à 250 mots par partie si les
 sources le permettent. Ces longueurs sont des consignes au modèle, pas une garantie.
 L’ordre des trois parties et les citations sont contrôlés avant affichage.
+La description apparaît sous le formulaire de demande. Le modèle sélectionne
+les identifiants des passages documentaires ; le serveur insère ensuite leur
+texte original dans les citations. Cela évite les rejets dus à une traduction
+ou une reformulation des citations par le modèle. Les références inconnues
+restent rejetées. Les passages transmis sont bornés à 1 000 caractères pour
+être cités intégralement. Ce contrôle ne garantit pas que l’interprétation de
+chaque passage par le modèle soit correcte.
 
 Les documents sont associés à chaque œuvre par son identifiant. Trois emplacements
 sont lus ensemble, sans mélanger les tableaux :
@@ -148,9 +154,17 @@ Le sélecteur **Contraste des images** propose Normal, Élevé (high contrast) e
 Doux (low contrast). Il ajuste l’affichage sans modifier les fichiers ni l’image
 transmise au modèle. Il ne constitue pas une correction universelle du daltonisme.
 
-La consigne commune est centralisée dans `my_art/master_prompt.txt`. Bedrock
-l’applique automatiquement aux questions et aux visites ; l’utilisateur n’a rien
-à copier. Elle est consultable dans la barre latérale.
+La consigne de visite est centralisée dans `my_art/master_prompt.txt`. Bedrock
+l’applique uniquement aux visites guidées ; elle est consultable dans la barre
+latérale lorsque ce mode est choisi.
+
+En mode **Question**, la master prompt et l’ordre de la visite ne sont pas envoyés.
+Lorsque l’analyse visuelle est activée, le modèle reçoit l’original et toutes les
+vues préparées de l’œuvre, normalisés en JPEG et identifiés par leur plan. Il choisit
+les vues utiles à la réponse selon leur contenu, sans ordre imposé. Seules les vues
+sélectionnées sont affichées avec la réponse. Les consignes de sources et le format
+structuré nécessaire à l’affichage restent transmis. Le choix pertinent d’un plan
+par le modèle doit être évalué sur des réponses réelles.
 
 Le générateur autonome propose désormais `premier_plan`, `second_plan`,
 `arriere_plan` et `detail` (quatre éditions par défaut). Pour ne préparer que les

@@ -13,10 +13,17 @@ from botocore.exceptions import (BotoCoreError, ClientError, NoCredentialsError,
                                  ConnectTimeoutError, ProfileNotFound, TokenRetrievalError)
 
 from .config import Settings
-from .schemas import VISIT_SCHEMA
+from .schemas import MODEL_VISIT_SCHEMA
 
-# Consigne commune appliquée automatiquement aux questions et aux visites.
+# Consigne réservée aux visites guidées.
 SYSTEM = Path(__file__).with_name("master_prompt.txt").read_text(encoding="utf-8")
+
+
+@dataclass(frozen=True)
+class ModelImage:
+    focus: str
+    label: str
+    data: bytes
 
 
 @dataclass
@@ -28,7 +35,8 @@ class Completion:
 
 class VisitModel(Protocol):
     """Point de remplacement futur par un autre fournisseur de génération textuelle."""
-    def complete(self, prompt: str, image: bytes | None) -> Completion: ...
+    def complete(self, prompt: str, image: bytes | None, *, mode: str = "visit",
+                 images: tuple[ModelImage, ...] = ()) -> Completion: ...
 
 
 class ModelError(RuntimeError):
@@ -40,10 +48,18 @@ class BedrockModel:
         self.settings = settings
         self._client = client
 
-    def complete(self, prompt: str, image: bytes | None) -> Completion:
+    def complete(self, prompt: str, image: bytes | None, *, mode: str = "visit",
+                 images: tuple[ModelImage, ...] = ()) -> Completion:
+        if mode not in {"ask", "visit"}:
+            raise ValueError("Mode inconnu.")
         content = [{"text": prompt}]
         if image:
+            content.append({"text": "Image : overview — tableau original complet."})
             content.append({"image": {"format": "jpeg", "source": {"bytes": image}}})
+        for attached in images:
+            content.append({"text": f"Image : {attached.focus} — {attached.label} (vue pédagogique préparée)."})
+            content.append({"image": {"format": "jpeg", "source": {"bytes": attached.data}}})
+        system_options = {"system": [{"text": SYSTEM}]} if mode == "visit" else {}
         try:
             if self._client is None:
                 # Authentification par clé Bedrock ou chaîne AWS standard (profil, SSO, IAM).
@@ -57,13 +73,13 @@ class BedrockModel:
                 )
             response = self._client.converse(
                 modelId=self.settings.model_id,
-                system=[{"text": SYSTEM}],
+                **system_options,
                 messages=[{"role": "user", "content": content}],
                 inferenceConfig={"maxTokens": self.settings.max_output_tokens, "temperature": 0},
                 toolConfig={"tools": [{"toolSpec": {
                     "name": "present_visit",
-                    "description": "Transmettre une proposition de visite documentée pour validation.",
-                    "inputSchema": {"json": VISIT_SCHEMA},
+                    "description": "Transmettre une explication illustrée et sourcée pour validation.",
+                    "inputSchema": {"json": MODEL_VISIT_SCHEMA},
                 }}], "toolChoice": {"tool": {"name": "present_visit"}}},
             )
         except ClientError as exc:

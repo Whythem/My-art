@@ -14,7 +14,7 @@ def response(prepared):
     source = prepared.context.sources[0]
     return {"status": "answered", "steps": [
         {"title": focus, "text": f"Explication {focus}", "basis": "document",
-         "evidence": [{"source_id": source.id, "quote": source.text[:100]}],
+         "evidence": [{"source_id": source.id}],
          "visual_focus": focus, "visual_target": focus}
         for focus in ("overview", "foreground", "midground")
     ]}
@@ -34,6 +34,8 @@ class AccessibleVisitTests(unittest.TestCase):
                     model.complete.return_value = Completion(response(prepared), {})
                     result = service.run(prepared)
                     self.assertEqual(len(result["visit"]["steps"]), 3)
+                    self.assertEqual(result["visit"]["steps"][0]["evidence"][0]["quote"],
+                                     prepared.context.sources[0].text)
                     self.assertEqual([v["status"] for v in result["visual_calls"]], ["ready", "ready"])
                     model.complete.assert_called_once()
                     malformed = response(prepared)
@@ -78,7 +80,7 @@ class AccessibleVisitTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             with_uploads(original.context, artwork.id, files, max_chars=10)
 
-    def test_ui_navigation_contrast_and_questions_share_master_prompt(self):
+    def test_ui_displays_complete_visit_below_request_and_preserves_contrast(self):
         from streamlit.testing.v1 import AppTest
         settings = Settings(ROOT / "data")
         model = Mock()
@@ -93,13 +95,19 @@ class AccessibleVisitTests(unittest.TestCase):
             next(b for b in app.button if b.label == "Demander l'explication — appel Bedrock").click().run()
             self.assertFalse(app.exception)
             for index, focus in enumerate(("overview", "foreground", "midground")):
-                app.radio(key=f"visit_step_{artwork_id}").set_value(index).run()
                 self.assertFalse(app.exception)
                 texts = [t.value for t in app.text]
                 self.assertIn(f"Explication {focus}", texts)
-                self.assertEqual(sum(t.startswith("Explication ") for t in texts), 1)
-                # One logo and only the currently selected painting view.
-                self.assertEqual(len(app.get("image")), 2)
+                self.assertEqual(sum(t.startswith("Explication ") for t in texts), 3)
+                elements = list(app.main)
+                submit_index = next(i for i, e in enumerate(elements)
+                                    if e.type == "button" and e.label == "Demander l'explication — appel Bedrock")
+                description_index = next(i for i, e in enumerate(elements)
+                                         if e.type == "text" and e.value == f"Explication {focus}")
+                self.assertLess(submit_index, description_index)
+                # Logo, original, premier plan et second plan affichés ensemble.
+                self.assertEqual(len(app.get("image")), 4)
+                self.assertFalse(any(r.label == "Étape de la visite" for r in app.radio))
             next(w for w in app.selectbox if w.label == "Contraste des images").set_value("Élevé (high contrast)").run()
             self.assertTrue(any("contrast(1.6)" in m.value for m in app.markdown))
             model.complete.assert_called_once()

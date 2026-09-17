@@ -1,3 +1,4 @@
+from copy import deepcopy
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -78,3 +79,11 @@ def _visit_schema() -> dict:
 
 
 VISIT_SCHEMA = _visit_schema()
+
+
+# Le modèle sélectionne des passages ; le serveur y rattache les citations exactes.
+MODEL_VISIT_SCHEMA = deepcopy(VISIT_SCHEMA)
+_model_evidence = MODEL_VISIT_SCHEMA["properties"]["steps"]["items"]["properties"]["evidence"]
+_model_evidence["description"] = "Pour basis=document, choisir les source_id des passages qui étayent le texte. Pour observation, liste vide."
+_model_evidence["items"]["properties"].pop("quote")
+_model_evidence["items"]["required"].remove("quote")

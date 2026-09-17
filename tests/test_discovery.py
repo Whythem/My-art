@@ -132,7 +132,8 @@ class DiscoveryTests(unittest.TestCase):
             self.assertFalse(app.error)
             self.assertFalse(app.checkbox[0].disabled)
             self.assertTrue(app.checkbox[0].value)
-            self.assertEqual(len(app.selectbox(key="visual_choice_landscape").options), 2)
+            self.assertEqual(set(Catalog(self.root).get("landscape").views), {"foreground", "midground"})
+            self.assertFalse(any(w.label == "Vue à demander" for w in app.selectbox))
             complete.assert_not_called()
 
 

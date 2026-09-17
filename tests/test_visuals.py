@@ -74,20 +74,18 @@ class PreparedViewTests(unittest.TestCase):
             service.run(prepared)
         provider.generate.assert_not_called()
 
-    def test_ui_can_simulate_both_views_without_bedrock(self):
+    def test_ui_preview_has_no_manual_view_selection_or_bedrock_call(self):
         from streamlit.testing.v1 import AppTest
 
         with patch("my_art.config.Settings.from_env", return_value=Settings(self.root)), \
                 patch("my_art.bedrock.BedrockModel.complete") as bedrock, \
                 patch("my_art.ui.save_result", return_value=Path("test-result.json")):
             app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
-            for focus in ("foreground", "midground"):
-                app.selectbox(key="visual_choice_het-steen").set_value(focus)
-                next(b for b in app.button if b.label == "Simuler la génération de cette vue").click().run()
-                self.assertEqual(len(app.exception), 0)
-                result = app.session_state["mock_visual"]["result"]
-                self.assertEqual(result["request"]["focus"], focus)
-                self.assertEqual(result["status"], "ready")
+            self.assertFalse(any(w.label == "Vue à demander" for w in app.selectbox))
+            next(b for b in app.button if b.label == "Vérifier le contexte — sans appel API").click().run()
+            self.assertFalse(app.exception)
+            result = app.session_state["museum_result"]["result"]
+            self.assertEqual(set(result["artwork"]["views"]), {"foreground", "midground"})
             bedrock.assert_not_called()
 
 
