@@ -63,7 +63,7 @@ def discover_images(artwork: Artwork, folder: Path) -> Artwork:
                     "background": "Arrière-plan",
                     "detail": "Détail",
                 }[kind],
-                description=f"Vue pédagogique préparée : {matches[0].stem}.",
+                description=f"{matches[0].stem}.",
             )
 
     return artwork.model_copy(update={"image": image, "views": views})

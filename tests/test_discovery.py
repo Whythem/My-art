@@ -116,14 +116,14 @@ class DiscoveryTests(unittest.TestCase):
             watch_catalog.__wrapped__(self.root, before)
             rerun.assert_called_once_with()
 
-    def test_ui_refresh_detects_added_images_and_enables_attachment_without_api(self):
+    def test_ui_refresh_detects_added_images_without_api_before_profile_validation(self):
         from streamlit.testing.v1 import AppTest
 
         with patch("my_art.ui.Settings.from_env", return_value=Settings(self.root)), \
                 patch("my_art.bedrock.BedrockModel.complete") as complete:
             app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
             self.assertFalse(app.exception)
-            self.assertTrue(app.checkbox[0].disabled)
+            self.assertFalse(app.selectbox(key="profile_contrast").disabled)
             self.image("landscape.jpg")
             self.image("firstplan.png")
             self.image("secondplan.png")

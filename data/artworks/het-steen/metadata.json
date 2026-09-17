@@ -9,12 +9,12 @@
     "foreground": {
       "file": "firstplan.png",
       "label": "Premier plan",
-      "description": "Vue pédagogique préparée : manoir, grands arbres, charrette, chasseur et chien, avec le paysage lointain masqué en gris. Cette vue montre l'ensemble du premier plan, pas un détail isolé."
+      "description": "Manoir, grands arbres, charrette, chasseur et chien, avec le paysage lointain masqué en gris. Cette vue montre l'ensemble du premier plan, pas un détail isolé."
     },
     "midground": {
       "file": "secondplan.png",
       "label": "Second plan et paysage lointain",
-      "description": "Vue pédagogique préparée : prairies, arbres éloignés, horizon et ciel. Les éléments proches sont masqués en gris. Cette vue couvre le second plan et le lointain, pas uniquement un élément précis."
+      "description": "Prairies, arbres éloignés, horizon et ciel. Les éléments proches sont masqués en gris. Cette vue couvre le second plan et le lointain, pas uniquement un élément précis."
     }
   }
 }

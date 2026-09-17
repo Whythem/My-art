@@ -77,8 +77,18 @@ class PreparedViewTests(unittest.TestCase):
     def test_ui_preview_has_no_manual_view_selection_or_bedrock_call(self):
         from streamlit.testing.v1 import AppTest
 
-        with patch("my_art.config.Settings.from_env", return_value=Settings(self.root)), \
-                patch("my_art.bedrock.BedrockModel.complete") as bedrock, \
+        settings = Settings(self.root)
+        model = Mock()
+        service = MuseumService(settings, DirectContextProvider(settings.data_dir), model)
+        prepared = service.prepare("het-steen", mode="visit")
+        source = prepared.context.sources[0]
+        model.complete.return_value = Completion({"status": "answered", "steps": [{
+            "title": focus, "text": "Explication de test", "basis": "document",
+            "evidence": [{"source_id": source.id, "quote": source.text}],
+            "visual_focus": focus, "visual_target": "Zone du tableau",
+        } for focus in ("overview", "foreground", "midground")]}, {})
+        with patch("my_art.config.Settings.from_env", return_value=settings), \
+                patch("my_art.ui.make_service", return_value=service), \
                 patch("my_art.ui.save_result", return_value=Path("test-result.json")):
             app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
             self.assertFalse(any(w.label == "Vue à demander" for w in app.selectbox))

@@ -9,12 +9,12 @@
     "foreground": {
       "file": "firstplan.png",
       "label": "Premier plan",
-      "description": "Vue pédagogique préparée : l'encadrement bleu de la fenêtre et les deux vases fleuris posés sur l'appui. Le paysage extérieur est masqué en gris."
+      "description": "L'encadrement bleu de la fenêtre et les deux vases fleuris posés sur l'appui. Le paysage extérieur est masqué en gris."
     },
     "midground": {
       "file": "secondplan.png",
       "label": "Second plan et paysage",
-      "description": "Vue pédagogique préparée : les bâtiments blancs, les toits verts, les arbres, le chemin jaune et l'horizon. Les objets proches de l'appui sont masqués en gris."
+      "description": "Les bâtiments blancs, les toits verts, les arbres, le chemin jaune et l'horizon. Les objets proches de l'appui sont masqués en gris."
     }
   }
 }

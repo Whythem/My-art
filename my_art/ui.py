@@ -1,4 +1,4 @@
-"""Interface locale de test. Aucune requête AWS avant soumission explicite."""
+"""Interface locale de test pour configurer un profil et interroger Bedrock."""
 
 from dataclasses import replace
 import json
@@ -12,6 +12,61 @@ from my_art.corpus import Catalog
 from my_art.visuals import asset_path
 from my_art.paths import ROOT
 from my_art.discovery import catalog_snapshot
+
+
+DISABILITY_OPTIONS = [
+    ("daltonisme", "Daltonisme"),
+    ("trisomie", "Trisomie"),
+    ("cecite", "Cécité"),
+]
+
+DEFAULT_PROFILE = {
+    "contrast": "Normal",
+    "level": "Simple",
+    "show_planes": True,
+    "soundscape": False,
+}
+
+PROFILE_PRESETS = {
+    "daltonisme": {"contrast": "Élevé (high contrast)", "level": "Détaillé", "show_planes": True},
+    "trisomie": {"contrast": "Doux (low contrast)", "level": "Simple", "show_planes": True},
+    "cecite": {"contrast": "Normal", "level": "Détaillé", "show_planes": False, "soundscape": True},
+}
+
+CONTRAST_VALUES = {
+    "Normal": "1",
+    "Élevé (high contrast)": "1.6",
+    "Doux (low contrast)": "0.75",
+}
+
+
+def ensure_profile_state():
+    for key, value in DEFAULT_PROFILE.items():
+        st.session_state.setdefault(f"profile_{key}", value)
+    st.session_state.setdefault("profile_disability", DISABILITY_OPTIONS[0][0])
+    st.session_state.setdefault("profile_disability_previous", None)
+    st.session_state.setdefault("profile_saved", False)
+
+
+def selected_disability():
+    return st.session_state["profile_disability"]
+
+
+def apply_disability_preset(disability):
+    profile = DEFAULT_PROFILE.copy()
+    profile.update(PROFILE_PRESETS[disability])
+    for key, value in profile.items():
+        st.session_state[f"profile_{key}"] = value
+
+
+def current_profile():
+    return {
+        "disability": selected_disability(),
+        "contrast": st.session_state["profile_contrast"],
+        "level": st.session_state["profile_level"],
+        "show_planes": st.session_state["profile_show_planes"],
+        "soundscape": st.session_state["profile_soundscape"],
+    }
 
 
 @st.fragment(run_every=3)
@@ -40,14 +95,14 @@ def main():
         page_icon=str(logo_path),
         layout="centered",
     )
+    ensure_profile_state()
 
-    col_logo, col_title = st.columns([1, 5])
+    col_logo, col_title = st.columns([1, 5], vertical_alignment="center")
     with col_logo:
-        st.image(str(logo_path), width=90)
+        st.image(str(logo_path), width=110)
     with col_title:
-        st.title("Augmented Art for Accessibility")
-    st.write("Explorer une œuvre, une explication à la fois.")
-    st.caption("Prototype local : les réponses reposent sur la documentation de l'œuvre sélectionnée.")
+        st.title("Mon profil")
+        st.caption("Configurez les préférences que l'agent appliquera ensuite aux œuvres sélectionnées.")
 
     try:
         settings = Settings.from_env()
@@ -65,17 +120,50 @@ def main():
         st.stop()
 
     with st.sidebar:
-        contrast = st.selectbox("Contraste des images", ["Normal", "Élevé (high contrast)", "Doux (low contrast)"])
-        st.caption("Choisissez le rendu le plus confortable. L’original reste inchangé ; ce réglage ne corrige pas toutes les formes de daltonisme.")
+        with st.expander("Consigne de médiation appliquée automatiquement"):
+            st.text(SYSTEM)
         st.header("Configuration du test")
         model_id = st.selectbox("Modèle Bedrock", list(MODELS), index=list(MODELS).index(settings.model_id))
         st.caption(f"Région : {settings.region}")
         st.caption("Un appel Bedrock maximum par demande. Les appels d'images sont simulés avec les vues fournies. Aucun appel OpenAI ou audio.")
-        st.caption("L'aperçu du contexte fonctionne sans identifiants AWS.")
+        st.caption("L'ambiance sonore est enregistrée dans le profil mais n'est pas encore reliée au code.")
 
-    image_contrast = {"Normal": "1", "Élevé (high contrast)": "1.6", "Doux (low contrast)": "0.75"}[contrast]
+    with st.expander("Configurer mon profil", expanded=not st.session_state["profile_saved"]):
+        st.radio(
+            "Type de handicap",
+            [key for key, _label in DISABILITY_OPTIONS],
+            format_func=lambda value: next(label for key, label in DISABILITY_OPTIONS if key == value),
+            horizontal=True,
+            key="profile_disability",
+        )
+
+        disability = selected_disability()
+        if disability != st.session_state["profile_disability_previous"]:
+            apply_disability_preset(disability)
+            st.session_state["profile_disability_previous"] = disability
+
+        st.selectbox("Niveau de contraste", list(CONTRAST_VALUES), key="profile_contrast")
+        st.radio("Niveau de détail des explications", ["Simple", "Détaillé"], horizontal=True, key="profile_level")
+        st.checkbox("Voir les différents plans", key="profile_show_planes")
+        st.checkbox("Ambiance sonore", key="profile_soundscape")
+
+        if st.button("Valider mon profil", type="primary"):
+            st.session_state["profile_saved"] = True
+            st.session_state.pop("museum_result", None)
+            st.session_state.pop("museum_request_key", None)
+            st.rerun()
+
+    if not st.session_state["profile_saved"]:
+        st.info("Validez le profil pour ouvrir la sélection des œuvres.")
+        st.stop()
+
+    profile = current_profile()
+    st.success("Profil enregistré pour cette session.")
+
+    image_contrast = CONTRAST_VALUES[profile["contrast"]]
     st.markdown(f"<style>[data-testid='stImage'] img {{filter: contrast({image_contrast});}}</style>", unsafe_allow_html=True)
     settings = replace(settings, model_id=model_id)
+    st.subheader("Choisir une œuvre")
     artwork_id = st.selectbox("Œuvre", [a.id for a in artworks],
                              format_func=lambda value: next(a.title for a in artworks if a.id == value))
     artwork = next(a for a in artworks if a.id == artwork_id)
@@ -99,41 +187,34 @@ def main():
         st.error(str(exc) if isinstance(exc, ValueError) else "Impossible de lire l'image locale.")
         st.stop()
 
-    uploads = st.file_uploader("Ajouter des documents pour cette œuvre (facultatif)", type=["txt"],
-                               accept_multiple_files=True, key=f"documents_{artwork_id}")
-    st.caption("TXT UTF-8 : 10 fichiers maximum, 1 Mo chacun. Ces ajouts servent uniquement aux demandes de cette œuvre dans cette session. Leur texte figure dans le résultat téléchargeable et enregistré localement.")
-    with st.form("visit_request"):
-        mode_label = st.radio("Que souhaitez-vous faire ?", ["Poser une question", "Suivre une visite guidée"], index=1)
-        question = st.text_area("Votre question (facultative pour la visite guidée)", max_chars=2000,
-                                placeholder="Que représente le premier plan ?")
-        level_label = st.radio("Niveau d'explication", ["Simple", "Détaillé"], horizontal=True)
-        include_image = st.checkbox("Joindre les images à l’analyse (tous les plans en mode question)", value=bool(image or artwork.views) and MODELS[model_id],
-                                    disabled=not (image or artwork.views) or not MODELS[model_id],
-                                    key=f"attach_{artwork_id}_{model_id}_{bool(image)}")
-        preview = st.form_submit_button("Vérifier le contexte — sans appel API")
-        submit = st.form_submit_button("Demander l'explication — appel Bedrock")
+    result_container = st.container()
 
-    if mode_label == "Suivre une visite guidée":
-        with st.sidebar.expander("Consigne de visite guidée"):
-            st.text(SYSTEM)
-
-    if preview or submit:
+    request_key = json.dumps({
+        "artwork_id": artwork_id,
+        "model_id": model_id,
+        "contrast": profile["contrast"],
+        "level": profile["level"],
+        "disability": profile["disability"],
+        "show_planes": profile["show_planes"],
+        "soundscape": profile["soundscape"],
+        "image": bool(image),
+    }, sort_keys=True)
+    if st.session_state.get("museum_request_key") != request_key:
         st.session_state.pop("museum_result", None)
         try:
             service = make_service(settings)
-            prepared = service.prepare(artwork_id, question,
-                                       "ask" if mode_label == "Poser une question" else "visit",
-                                       "simple" if level_label == "Simple" else "detaille",
-                                       include_image and MODELS[model_id],
-                                       documents=[(file.name, file.getvalue()) for file in uploads])
-            if preview:
-                result = {**prepared.preview(), "status": "dry_run", "calls": 0,
-                          "model": model_id, "region": settings.region}
-            else:
-                with st.spinner("Préparation de l'explication à partir des sources…"):
-                    result = service.run(prepared)
+            prepared = service.prepare(
+                artwork_id,
+                "",
+                "visit",
+                "simple" if profile["level"] == "Simple" else "detaille",
+                bool(image) and MODELS[model_id],
+            )
+            with st.spinner("Préparation de l'explication à partir des sources…"):
+                result = service.run(prepared)
             path = save_result(result)
             st.session_state["museum_result"] = {"result": result, "path": str(path)}
+            st.session_state["museum_request_key"] = request_key
             st.rerun()
         except (ValueError, ModelError, OSError) as exc:
             st.error(str(exc) if isinstance(exc, (ValueError, ModelError)) else "Erreur de fichier local.")
@@ -152,9 +233,10 @@ def main():
                 st.info(result["message"])
                 for index, step in enumerate(result["visit"]["steps"], 1):
                     st.subheader(f"{index}. {step['title']}" if result["mode"] == "visit" else step["title"])
-                    if step.get("visual"):
+                    show_step_visual = profile["show_planes"] or step["visual_focus"] == "overview"
+                    if show_step_visual and step.get("visual"):
                         show_visual(catalog, step["visual"], artwork_id)
-                    elif step["visual_focus"] == "overview" and image:
+                    elif show_step_visual and step["visual_focus"] == "overview" and image:
                         st.image(image, caption=artwork.image_alt or "Tableau original")
                     st.caption("Selon la documentation" if step["basis"] == "document" else "Observation visuelle de l'IA")
                     st.text(step["text"])

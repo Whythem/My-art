@@ -89,10 +89,12 @@ class AccessibleVisitTests(unittest.TestCase):
                 patch("my_art.ui.make_service", return_value=service), \
                 patch("my_art.ui.save_result", return_value=Path("test-result.json")):
             app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
-            artwork_id = next(w for w in app.selectbox if w.label == "Œuvre").value
+            app.checkbox(key="disability_daltonisme").set_value(True).run()
+            self.assertEqual(app.selectbox(key="profile_contrast").value, "Élevé (high contrast)")
+            artwork_id = sorted(service.catalog.list(), key=lambda art: (art.demo, art.title))[0].id
             prepared = service.prepare(artwork_id, mode="visit")
             model.complete.return_value = Completion(response(prepared), {})
-            next(b for b in app.button if b.label == "Demander l'explication — appel Bedrock").click().run()
+            next(b for b in app.button if b.label == "Valider mon profil").click().run()
             self.assertFalse(app.exception)
             for index, focus in enumerate(("overview", "foreground", "midground")):
                 self.assertFalse(app.exception)

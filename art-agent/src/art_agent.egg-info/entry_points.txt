@@ -1,0 +1,2 @@
+[console_scripts]
+art-agent = art_agent.cli:app

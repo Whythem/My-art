@@ -249,19 +249,20 @@ class AppTests(unittest.TestCase):
                 patch("my_art.ui.save_result", return_value=Path("test-result.json")):
             app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
             self.assertEqual(len(app.exception), 0)
-            app.radio[0].set_value("Suivre une visite guidée")
-            app.button[0].click().run()
+            app.checkbox(key="disability_trisomie").set_value(True).run()
             self.assertEqual(len(app.exception), 0)
+            self.assertEqual(app.selectbox(key="profile_contrast").value, "Doux (low contrast)")
+            self.assertEqual(app.radio(key="profile_level").value, "Simple")
             fake.complete.assert_not_called()
-            self.assertIn("Aucun appel API", app.success[0].value)
-            prepared = service.prepare("demo-jardin", mode="visit")
+            artwork_id = sorted(service.catalog.list(), key=lambda art: (art.demo, art.title))[0].id
+            prepared = service.prepare(artwork_id, mode="visit")
             source = prepared.context.sources[0]
             fake.complete.return_value = Completion({"status": "answered", "steps": [{
                 "title": "Une démonstration", "text": "Cette œuvre est fictive.", "basis": "document",
                 "evidence": [{"source_id": source.id, "quote": source.text}],
                 "visual_focus": focus, "visual_target": "",
             } for focus in ("overview", "foreground", "midground")]}, {})
-            app.button[1].click().run()
+            app.button[0].click().run()
             self.assertEqual(len(app.exception), 0)
             fake.complete.assert_called_once()
             self.assertTrue(any("Cette œuvre est fictive" in text.value for text in app.text))
